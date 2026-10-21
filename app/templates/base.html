@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Statistically Speaking{% endblock %}</title>
+  <link rel="icon" href="{{ request.url_for('static', path='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='design/tokens.css') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='design/base.css') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='show.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <a class="ath-skip-link" href="#main">Skip to content</a>
+  {% block header %}
+  <header class="ath-header">
+    <a class="ath-brand" href="{{ request.url_for('home') }}"><img src="{{ request.url_for('static', path='favicon.svg') }}" alt="" width="38" height="38">Statistically Speaking</a>
+    <nav aria-label="Primary">
+      {% block nav_links %}
+        <a href="{{ request.url_for('join_form') }}">Join</a>
+        <a href="{{ request.url_for('admin_login_page') }}">Teacher</a>
+      {% endblock %}
+      {% if request.state.ecosystem_enabled %}
+      <a href="{{ request.url_for('app_account') }}">{{ 'Account' if request.state.ecosystem_account else 'Login' }}</a>
+      {% endif %}
+    </nav>
+  </header>
+  {% endblock %}
+  <main class="ath-page {% block main_class %}{% endblock %}" id="main">
+    {% block content %}{% endblock %}
+  </main>
+  {% block footer %}
+  <footer class="ath-footer">
+    <p><span>Statistically Speaking</span> AP Statistics</p>
+    <p>{% if request.state.ecosystem_enabled %}<a href="/">Valente Math</a>{% endif %}</p>
+  </footer>
+  {% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

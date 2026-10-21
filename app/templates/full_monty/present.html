@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Full Monty · {{ session.join_code }}{% endblock %}
+{% block body_class %}present{% endblock %}
+{% block main_class %}present-main{% endblock %}
+{% block header %}
+<header class="pbar">
+  <div class="pbar-brand"><span class="on-air">On air</span> Full Monty{% if settings.get('label') %} <span class="muted">· {{ settings.get('label') }}</span>{% endif %}</div>
+  <div class="pbar-join">Join at <span class="code">{{ join_url }}</span> · code <span class="code code-large">{{ session.join_code }}</span></div>
+</header>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block content %}
+<div id="presenter" data-state-url="{{ state_url }}">
+  <section class="phase" id="phase-lobby" hidden>
+    <h1>Three doors. One car.</h1>
+    <p class="sub">Join on your phone, then answer the first question.</p>
+    <div class="join-ways">
+      <div class="join-way">
+        <div class="join-big">Go to <span class="code">{{ join_url }}</span><br>and enter the code</div>
+        <div class="marquee code-marquee">{{ session.join_code }}</div>
+      </div>
+      <div class="join-or">or</div>
+      <div class="join-way">
+        <div class="qr-card"><img src="{{ qr_url }}" alt="QR code that opens the join page with the code filled in"></div>
+        <div class="join-big">Scan to join</div>
+      </div>
+    </div>
+    <p class="joined"><strong id="joined-count">0</strong> joined · <strong id="answered-count">0</strong> answered</p>
+  </section>
+
+  <section class="phase" id="phase-active" hidden>
+    <div class="live-head">
+      <h1>The record</h1>
+      <p class="sub" id="rule-line"></p>
+    </div>
+    <div class="marquee record-marquee"><div id="record"></div></div>
+    <svg id="chart" class="chart chart-large" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
+    <p class="sub" id="tables-line"></p>
+  </section>
+
+  <section class="phase" id="phase-ended" hidden>
+    <h1>Should you switch?</h1>
+    <div class="marquee record-marquee"><div id="record-final"></div></div>
+    <p class="statement" id="statement"></p>
+    <svg id="chart-final" class="chart chart-large" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
+    <div class="beliefs-wide">
+      <h2>What the room believed</h2>
+      <div id="beliefs"></div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ request.url_for('static', path='show.js') }}"></script>
+<script src="{{ request.url_for('static', path='fm-present.js') }}"></script>
+{% endblock %}

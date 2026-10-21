@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Sessions · Statistically Speaking{% endblock %}
+{% block nav_links %}{% include "_teacher_nav.html" %}{% endblock %}
+{% block content %}
+<article>
+  <div class="heading-row">
+    <h1>Sessions</h1>
+    <a href="{{ request.url_for('new_session_form') }}" class="btn btn-primary">New session</a>
+  </div>
+  {% if sessions %}
+  <div class="table-scroll">
+    <table class="sessions">
+      <thead><tr><th>Code</th><th>Experience</th><th>Label</th><th>Status</th><th>Students</th><th>Created</th><th></th></tr></thead>
+      <tbody>
+        {% for s in sessions %}
+        {% set exp = experiences.get(s.kind) %}
+        <tr>
+          <td><span class="code">{{ s.join_code }}</span></td>
+          <td>{% if exp %}{{ exp.name }}{% else %}<span class="muted">{{ s.kind }}</span>{% endif %}</td>
+          <td class="muted">{{ s.settings.get('label') or '—' }}</td>
+          <td><span class="badge badge-{{ s.status }}">{{ s.status }}</span></td>
+          <td>{{ s.players | length }}</td>
+          <td class="muted small nowrap">{{ s.created_at.strftime('%b %d, %H:%M') if s.created_at else '—' }}</td>
+          <td><a href="{{ request.url_for('admin_session_entry', session_id=s.id) }}" class="btn btn-small">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No sessions yet. Start one to get a join code for your class.</p>
+  {% endif %}
+</article>
+{% endblock %}

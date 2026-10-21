@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Join · Statistically Speaking{% endblock %}
+{% block content %}
+<article class="narrow">
+  <h1>Join</h1>
+  {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+  <form method="post" action="{{ request.url_for('join_session') }}">
+    <div class="field">
+      <label for="join_code">Join code</label>
+      <input type="text" id="join_code" name="join_code" class="code-input" maxlength="6" required
+             autocomplete="off" autocapitalize="characters" spellcheck="false" value="{{ code }}">
+    </div>
+    {% if request.state.ecosystem_account %}
+    <p>Joining as {{ request.state.ecosystem_account.name }} · <a href="/account/?return_to={{ request.url_for('join_form').path|urlencode }}%3Fcode%3D{{ code|default('')|urlencode }}">Change name</a></p>
+    {% else %}
+    <div class="field">
+      <label for="player_name">Your name</label>
+      <input type="text" id="player_name" name="player_name" maxlength="60" required autocomplete="off" {% if code %}autofocus{% endif %}>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-primary btn-large btn-block">Join</button>
+  </form>
+  <p class="muted small">Returning from this browser brings you back to your seat.</p>
+</article>
+{% endblock %}

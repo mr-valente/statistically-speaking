@@ -1,0 +1,4 @@
+<a href="{{ request.url_for('admin_dashboard') }}">Sessions</a>
+<a href="{{ request.url_for('new_session_form') }}">New session</a>
+{% if not request.state.ecosystem_account %}<a href="{{ request.url_for('admin_logout') }}">Log out</a>{% endif %}
+<span class="nav-who">{{ teacher.name }}</span>

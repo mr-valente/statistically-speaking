@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Statistically Speaking{% endblock %}
+{% block main_class %}show-home{% endblock %}
+{% block content %}
+<article>
+  <p class="ath-eyebrow"><span>On air</span>AP Statistics</p>
+  <div class="marquee title-card">
+    <h1>Statistically Speaking</h1>
+    <p class="lede">Game-show rounds for the statistics classroom. Join with the code from your teacher, or sign in as the teacher to run one.</p>
+    <p class="actions">
+      <a class="btn btn-primary btn-large" href="{{ request.url_for('join_form') }}">Join with a code</a>
+      <a class="btn btn-large" href="{{ request.url_for('admin_login_page') }}">Teacher</a>
+    </p>
+  </div>
+
+  <section class="ath-section-index episodes">
+    <div class="ath-index-heading"><h2>Experiences</h2><span>{{ experiences | length }}</span></div>
+    <ul>
+      {% for exp in experiences %}
+      <li>
+        <div class="episode">
+          <span class="ath-entry-number">{{ '%02d' | format(loop.index) }}</span>
+          <div>
+            <span class="ath-entry-title"><span class="glyph" aria-hidden="true">{{ exp.glyph }}</span> {{ exp.name }}</span>
+            <span class="episode-question">{{ exp.question }}</span>
+            <span class="ath-entry-description">{{ exp.description }}</span>
+            <span class="episode-actions">
+              <a href="{{ request.url_for('join_form') }}">Join as a student</a>
+              <a href="{{ request.url_for(exp.new_session_route) }}">Run it as the teacher</a>
+            </span>
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="muted small">More experiences as they are built.</p>
+  </section>
+</article>
+{% endblock %}

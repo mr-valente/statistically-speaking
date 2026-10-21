@@ -1,0 +1,24 @@
+# Release builds only; ../docker-compose.yml is standalone local development.
+# Like the other apps, one build publishes two image lines at the same app version:
+#   build statistically-speaking -> latest / VERSION and latest-athenaeum / VERSION-athenaeum
+# Both share the runtime layers; only hosting defaults differ between targets.
+name: statistically-speaking-build
+services:
+  standalone:
+    image: valentemath/statistically-speaking:latest
+    platform: ${STATISTICALLY_SPEAKING_PLATFORM:-linux/arm64}
+    pull_policy: build
+    build:
+      context: ..
+      target: standalone
+      args:
+        STATISTICALLY_SPEAKING_VERSION: ${STATISTICALLY_SPEAKING_VERSION:-dev}
+  athenaeum:
+    image: valentemath/statistically-speaking:latest-athenaeum
+    platform: ${STATISTICALLY_SPEAKING_PLATFORM:-linux/arm64}
+    pull_policy: build
+    build:
+      context: ..
+      target: athenaeum
+      args:
+        STATISTICALLY_SPEAKING_VERSION: ${STATISTICALLY_SPEAKING_VERSION:-dev}

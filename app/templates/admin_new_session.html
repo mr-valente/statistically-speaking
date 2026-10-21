@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}New session · Statistically Speaking{% endblock %}
+{% block nav_links %}{% include "_teacher_nav.html" %}{% endblock %}
+{% block content %}
+<article>
+  <h1>Which experience?</h1>
+  <section class="ath-section-index episodes">
+    <ul>
+      {% for exp in experiences %}
+      <li>
+        <div class="episode">
+          <span class="ath-entry-number">{{ '%02d' | format(loop.index) }}</span>
+          <div>
+            <span class="ath-entry-title"><span class="glyph" aria-hidden="true">{{ exp.glyph }}</span> {{ exp.name }}</span>
+            <span class="episode-question">{{ exp.question }}</span>
+            <span class="ath-entry-description">{{ exp.description }}</span>
+            <span class="episode-actions"><a class="btn btn-small" href="{{ request.url_for(exp.new_session_route) }}">Set up {{ exp.name }}</a></span>
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</article>
+{% endblock %}

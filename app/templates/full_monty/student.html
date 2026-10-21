@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Full Monty · Statistically Speaking{% endblock %}
+{% block nav_links %}<span class="nav-who">{{ player.name }}</span>{% endblock %}
+{% block content %}
+<article class="narrow student" id="student" data-state-url="{{ state_url }}" data-act-url="{{ act_url }}" data-vote-url="{{ vote_url }}" data-name="{{ player.name }}">
+  <section class="phase" id="phase-lobby" hidden>
+    <h1>You're in, {{ player.name }}.</h1>
+    <div id="before-vote"></div>
+    <p class="sub" id="lobby-note">Waiting for your teacher to seat everyone.</p>
+  </section>
+
+  <section class="phase" id="phase-play" hidden>
+    <p class="table-line" id="table-line"></p>
+    <p class="prompt" id="prompt"></p>
+    <div class="doors" id="doors"></div>
+    <div class="panel" id="panel"></div>
+    <p class="error" id="error" hidden></p>
+    <p class="muted small" id="table-record"></p>
+  </section>
+
+  <section class="phase" id="phase-ended" hidden>
+    <h1>That's the show, {{ player.name }}.</h1>
+    <div id="after-vote"></div>
+    <div id="summary"></div>
+  </section>
+</article>
+{% endblock %}
+{% block scripts %}
+<script src="{{ request.url_for('static', path='show.js') }}"></script>
+<script src="{{ request.url_for('static', path='fm-student.js') }}"></script>
+{% endblock %}

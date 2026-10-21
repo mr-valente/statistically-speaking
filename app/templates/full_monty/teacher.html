@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Full Monty {{ session.join_code }} · Statistically Speaking{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block nav_links %}{% include "_teacher_nav.html" %}{% endblock %}
+{% block content %}
+{% set label = settings.get('label') %}
+<article id="dashboard" data-state-url="{{ state_url }}" data-session-status="{{ session.status }}">
+  <div class="heading-row">
+    <div class="heading-group">
+      <h1>Full Monty{% if label %} <span class="muted">· {{ label }}</span>{% endif %}</h1>
+      <span class="code code-large">{{ session.join_code }}</span>
+      <span class="badge badge-{{ session.status }}">{{ session.status }}</span>
+    </div>
+    <div class="actions">
+      <a href="{{ request.url_for('full_monty_present', session_id=session.id) }}" target="_blank" rel="noopener" class="btn btn-small">Presenter view ↗</a>
+      {% if session.status != 'ended' %}<button type="button" class="btn btn-small" id="qr-open">Join with QR</button>{% endif %}
+      <a href="{{ request.url_for('full_monty_export', session_id=session.id) }}" class="btn btn-small btn-quiet">Games CSV</a>
+      <a href="{{ request.url_for('full_monty_export_votes', session_id=session.id) }}" class="btn btn-small btn-quiet">Beliefs CSV</a>
+      {% if session.status != 'ended' %}
+      <form method="post" action="{{ request.url_for('full_monty_end', session_id=session.id) }}" id="end-form"
+            data-confirm="End the session? Games in play are dropped and students are asked the question once more.">
+        <button type="submit" class="btn btn-small btn-danger">End session</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if session.status == 'lobby' %}
+  <p class="notice">Students join at <span class="code">{{ join_url }}</span> with code <span class="code">{{ session.join_code }}</span>, or scan the QR code on the presenter view. Each answers the first question while waiting. When everyone is in, seat them.</p>
+  {% elif session.status == 'ended' %}
+  <p class="notice">Session ended. Students answer the question once more, then see their own record. The class record is below.</p>
+  {% endif %}
+
+  <div class="grid-2">
+    <div class="stack">
+      <section class="card">
+        <h2>Tables</h2>
+        {% if session.status != 'ended' %}
+        <div class="actions">
+          <form method="post" action="{{ request.url_for('full_monty_pairs', session_id=session.id) }}">
+            <input type="hidden" name="mode" value="newcomers">
+            <button type="submit" class="btn btn-primary">{{ 'Seat everyone' if session.status == 'lobby' else 'Seat newcomers' }}</button>
+          </form>
+          {% if session.status == 'active' %}
+          <form method="post" action="{{ request.url_for('full_monty_pairs', session_id=session.id) }}" id="reshuffle-form"
+                data-confirm="Reshuffle every table? Games in play are dropped; finished games stay in the record.">
+            <input type="hidden" name="mode" value="reshuffle">
+            <button type="submit" class="btn btn-quiet">Reshuffle tables</button>
+          </form>
+          {% endif %}
+        </div>
+        <p class="help">Partners swap roles every game. An odd student out plays against the House, which hosts.</p>
+        {% endif %}
+        <div class="table-scroll">
+          <table id="tables" class="tables">
+            <thead><tr><th>Table</th><th>Partners</th><th>Games</th><th>Now</th></tr></thead>
+            <tbody>
+              {% for t in tables %}
+              <tr>
+                <td>{{ t.index }}</td>
+                <td>{{ t.first }} · {{ t.second }}</td>
+                <td>{{ t.played }}</td>
+                <td class="muted">{% if t.game %}{{ t.game.status }} · {{ t.game.host }} hosts{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="muted small" id="no-tables"{% if tables %} hidden{% endif %}>No tables yet.</p>
+        <p class="small" id="unpaired-line"{% if not unpaired %} hidden{% endif %}>Waiting to be seated: <span id="unpaired">{{ unpaired | join(', ') }}</span></p>
+      </section>
+
+      {% if session.status != 'ended' %}
+      <section class="card">
+        <h2>Rule</h2>
+        <form method="post" action="{{ request.url_for('full_monty_rule', session_id=session.id) }}" id="rule-form" class="rule-form">
+          {% for r in rules %}
+          <label class="check"><input type="radio" name="rule" value="{{ r }}"{% if r == rule %} checked{% endif %}>
+            {% if r == 'choice' %}Contestants choose{% elif r == 'stay' %}Everyone stays{% else %}Everyone switches{% endif %}</label>
+          {% endfor %}
+          <button type="submit" class="btn btn-small">Apply</button>
+        </form>
+        <p class="help">Applies to decisions from now on. Use the forced rules to fill in whichever column is short.</p>
+      </section>
+      {% endif %}
+
+      <section class="card">
+        <h2>Students <span class="muted" id="player-count">{{ players | length }}</span></h2>
+        <div class="chips" id="player-chips">
+          {% for name in players %}<span class="chip">{{ name }}</span>{% endfor %}
+        </div>
+        <p class="muted small" id="no-players"{% if players %} hidden{% endif %}>Nobody yet. Share the code.</p>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="card">
+        <h2>The record</h2>
+        <div id="record"></div>
+        <svg id="chart" class="chart" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
+        <p class="small" id="surprise"></p>
+      </section>
+      <section class="card">
+        <h2>Beliefs</h2>
+        <div id="beliefs"></div>
+        <p class="help">Asked before each student is seated, and again when the session ends.</p>
+      </section>
+    </div>
+  </div>
+
+  {% if session.status != 'ended' %}
+  <dialog class="qr-dialog" id="qr-dialog">
+    <div class="qr-dialog-body">
+      <h2>Scan to join</h2>
+      <div class="qr-card"><img src="{{ qr_url }}" alt="QR code that opens the join page with the code filled in"></div>
+      <p>Or go to <span class="code">{{ join_url }}</span> and enter <span class="code code-large">{{ session.join_code }}</span></p>
+      <button type="button" class="btn btn-quiet" id="qr-close">Close</button>
+    </div>
+  </dialog>
+  {% endif %}
+</article>
+{% endblock %}
+{% block scripts %}
+<script src="{{ request.url_for('static', path='show.js') }}"></script>
+<script src="{{ request.url_for('static', path='fm-teacher.js') }}"></script>
+{% endblock %}

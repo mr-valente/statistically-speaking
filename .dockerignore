@@ -1,0 +1,12 @@
+**
+!requirements.txt
+!requirements.lock
+!app/
+!app/**
+!tests/
+!tests/**
+**/__pycache__
+**/*.pyc
+**/.env*
+**/*.db
+**/*.key

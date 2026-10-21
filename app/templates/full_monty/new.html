@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}New Full Monty session · Statistically Speaking{% endblock %}
+{% block nav_links %}{% include "_teacher_nav.html" %}{% endblock %}
+{% block content %}
+<article class="narrow">
+  <p class="ath-eyebrow"><span>Set up</span>Full Monty</p>
+  <h1>Full Monty</h1>
+  <p class="muted">Students pair up at tables and take turns hosting and playing. Each game lands in the class record. A session takes about twenty minutes of play.</p>
+  <form method="post" action="{{ request.url_for('full_monty_create') }}">
+    <div class="field">
+      <label for="label">Label (optional, for your session list)</label>
+      <input type="text" id="label" name="label" maxlength="40" placeholder="Period 3">
+    </div>
+    <button type="submit" class="btn btn-primary btn-large btn-block">Create session</button>
+  </form>
+</article>
+{% endblock %}
