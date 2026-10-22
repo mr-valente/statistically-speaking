@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Full Monty solo · Statistically Speaking{% endblock %}
+{% block container_class %}container-play student{% endblock %}
+{% block content %}
+<div id="solo">
+  <div class="round-head"><span>🚪 Full Monty</span> <span class="badge badge-gold">solo</span></div>
+  <p class="sub">Monty hides the boat. You pick a door. Monty opens a goat. Stay or switch?</p>
+  <p class="prompt" id="prompt"></p>
+  <div class="stage"><div class="doors" id="doors"></div></div>
+  <div class="panel" id="panel"></div>
+  <div class="card summary-record">
+    <div class="card-title-row"><h3>Your record</h3><span class="muted small" id="games-line"></span></div>
+    <div id="record"></div>
+    <svg id="chart" class="chart" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
+    <p class="small muted" id="surprise"></p>
+    <p class="mb-0"><button type="button" class="btn btn-ghost btn-sm" id="clear">Clear my record</button></p>
+  </div>
+  <p class="sub small">Your record stays in this browser. Playing with your class? <a href="{{ request.url_for('join_form') }}">Join the show</a>.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ request.url_for('static', path='show.js') }}"></script>
+<script src="{{ request.url_for('static', path='fm-solo.js') }}"></script>
+{% endblock %}

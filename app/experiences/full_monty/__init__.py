@@ -11,14 +11,14 @@ def _descriptor():
         slug="full-monty",
         name="Full Monty",
         glyph="🚪",
-        question="Three doors. One car. Should you switch?",
-        description=("Students pair up and take turns as host and contestant. The host hides the car and "
-                     "opens a goat door; the contestant stays or switches. Every game lands in the class record, "
-                     "and the record answers the question."),
+        question="Three doors. Two goats. One boat. Do you switch?",
+        description=("Grab a partner or two and take turns as host and contestant. Hide the boat, open a goat, "
+                     "stay or switch. Every game lands in the class record."),
         router=router,
         new_session_route="full_monty_new",
         teacher_route="full_monty_teacher",
         student_route="full_monty_student",
+        solo_route="full_monty_solo",
     )
 
 

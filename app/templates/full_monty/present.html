@@ -1,23 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Full Monty · {{ session.join_code }}{% endblock %}
 {% block body_class %}present{% endblock %}
-{% block main_class %}present-main{% endblock %}
-{% block header %}
+{% block navbar %}
 <header class="pbar">
-  <div class="pbar-brand"><span class="on-air">On air</span> Full Monty{% if settings.get('label') %} <span class="muted">· {{ settings.get('label') }}</span>{% endif %}</div>
+  <div class="pbar-brand"><span class="on-air">On air</span> 🚪 Full Monty{% if settings.get('label') %} <span class="muted">· {{ settings.get('label') }}</span>{% endif %}</div>
   <div class="pbar-join">Join at <span class="code">{{ join_url }}</span> · code <span class="code code-large">{{ session.join_code }}</span></div>
 </header>
 {% endblock %}
-{% block footer %}{% endblock %}
+{% block container_class %}container-wide present-main{% endblock %}
 {% block content %}
 <div id="presenter" data-state-url="{{ state_url }}">
   <section class="phase" id="phase-lobby" hidden>
-    <h1>Three doors. One car.</h1>
-    <p class="sub">Join on your phone, then answer the first question.</p>
+    <div class="marquee"><h1>Three doors. Two goats. One boat.</h1></div>
     <div class="join-ways">
       <div class="join-way">
         <div class="join-big">Go to <span class="code">{{ join_url }}</span><br>and enter the code</div>
-        <div class="marquee code-marquee">{{ session.join_code }}</div>
+        <div class="code-marquee">{{ session.join_code }}</div>
       </div>
       <div class="join-or">or</div>
       <div class="join-way">
@@ -25,7 +23,8 @@
         <div class="join-big">Scan to join</div>
       </div>
     </div>
-    <p class="joined"><strong id="joined-count">0</strong> joined · <strong id="answered-count">0</strong> answered</p>
+    <p class="joined"><strong id="joined-count">0</strong> in the room · <strong id="answered-count">0</strong> answered the question</p>
+    <div class="room-board" id="room"></div>
   </section>
 
   <section class="phase" id="phase-active" hidden>
@@ -33,14 +32,14 @@
       <h1>The record</h1>
       <p class="sub" id="rule-line"></p>
     </div>
-    <div class="marquee record-marquee"><div id="record"></div></div>
+    <div id="record"></div>
     <svg id="chart" class="chart chart-large" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
-    <p class="sub" id="tables-line"></p>
+    <div class="room-board room-mini" id="room-live"></div>
   </section>
 
   <section class="phase" id="phase-ended" hidden>
-    <h1>Should you switch?</h1>
-    <div class="marquee record-marquee"><div id="record-final"></div></div>
+    <div class="marquee"><h1>Do you switch?</h1></div>
+    <div id="record-final"></div>
     <p class="statement" id="statement"></p>
     <svg id="chart-final" class="chart chart-large" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
     <div class="beliefs-wide">

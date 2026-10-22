@@ -1,4 +1,5 @@
-<a href="{{ request.url_for('admin_dashboard') }}">Sessions</a>
-<a href="{{ request.url_for('new_session_form') }}">New session</a>
+<a href="{{ request.url_for('admin_dashboard') }}">Shows</a>
+<a href="{{ request.url_for('new_session_form') }}">New show</a>
 {% if not request.state.ecosystem_account %}<a href="{{ request.url_for('admin_logout') }}">Log out</a>{% endif %}
-<span class="nav-who">{{ teacher.name }}</span>
+<span class="navbar-sep">·</span>
+<span class="navbar-who">🎬 {{ teacher.name }}</span>

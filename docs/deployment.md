@@ -29,7 +29,7 @@ Awake memory is about 70 MiB on the workstation's `docker stats` after a full te
 
 ## Data and health
 
-Mount `/srv/athenaeum/apps/statistically-speaking/data/` at `/data`, owned by the runtime UID/GID. Production startup refuses to create a missing parent directory. An explicitly prepared empty directory initializes the schema (`teachers`, `sessions`, `players`, plus one table set per experience, currently `full_monty_pairs`, `full_monty_games` and `full_monty_votes`, and the additive `ecosystem_links` and `ecosystem_outbox`). There are no startup migrations yet.
+Mount `/srv/athenaeum/apps/statistically-speaking/data/` at `/data`, owned by the runtime UID/GID. Production startup refuses to create a missing parent directory. An explicitly prepared empty directory initializes the schema (`teachers`, `sessions`, `players`, plus one table set per experience, currently `full_monty_tables`, `full_monty_seats`, `full_monty_requests`, `full_monty_games` and `full_monty_votes`, and the additive `ecosystem_links` and `ecosystem_outbox`). Startup moves aside any table whose shape predates the current release (the first release's `full_monty_pairs` and `full_monty_games`, kept as `legacy_*` tables) and builds the current one in its place; nothing else is migrated.
 
 `GET /_health` returns 200 with `{"status":"ok"}` only if a read-only SQLite connection can read the `teachers` and `sessions` tables; otherwise 503 with a generic status. It never creates a database or advances a class.
 
@@ -49,9 +49,9 @@ docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
   python -m unittest discover -s tests -v
 ```
 
-The tests cover the door rules and the plain-English numbers, and launch a real Uvicorn against disposable databases under the `/statistically-speaking` prefix to check routing, the cookie contract, ownership, information gating (the car stays the host's secret until the reveal; the projector sees nothing personal), seating and reshuffling, the rule, the House, persistence across restart, the exports, and hosted identity against a stand-in account service, including the finalized results it publishes.
+The tests cover the door rules, the rotation at tables of two and three, and the plain-English numbers, and launch a real Uvicorn against disposable databases under the `/statistically-speaking` prefix to check routing, the cookie contract, ownership, information gating (the boat stays the host's secret until the reveal; the projector sees nothing personal), students finding tables by request, leaving and the teacher's broom, the house rule, persistence across restart, the exports, and hosted identity against a stand-in account service, including the finalized results it publishes.
 
-Shared-style version: 0.2.0 (After hours). Pinned copies of `tokens.css`, `base.css` and the fonts are in `app/static/design/`.
+Shared-style version: not adopted, on purpose. The games follow Bernoulli's and Quacktuaries' dark game theme (`app/static/show.css`); the After hours contract is for the main site.
 
 ## Manual image delivery
 

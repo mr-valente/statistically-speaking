@@ -6,16 +6,18 @@ Built with **Python/FastAPI**, **Jinja2** server-rendered templates, vanilla JS,
 
 ## Experiences
 
-### Full Monty — *Three doors. One car. Should you switch?*
+### Full Monty — *Three doors. Two goats. One boat. Do you switch?*
 
-The Monty Hall problem, played by partners and settled by the class record.
+The Monty Hall problem, played by partners and settled by the class record. (The prize is a boat because it rhymes with goat.)
 
 - **Join and answer.** Students join with the code and answer one question while they wait: when the host opens a goat door and offers the switch, is it better to switch, stay, or does it make no difference? The projector shows how many have answered, not the split.
-- **Seat.** The teacher seats everyone. Students are paired at numbered tables; an odd student out plays against the House, which hosts. Late arrivals wait in a list until the teacher seats newcomers; a reshuffle reseats the whole room.
-- **Play.** Partners take turns. The **host** hides the car (taps a door), sees the contestant's pick, and must open a door that hides a goat: the app only accepts a legal door and says why when it refuses. The **contestant** picks a door, then stays or switches. The doors open, both phones show the result, and either partner starts the next game with the roles swapped.
-- **Rule.** The teacher can let contestants choose, or make everyone stay or everyone switch for a while, so both columns of the record fill up.
+- **Find a table.** Students seat themselves. The lobby lists everyone still looking; tapping a classmate asks to sit together, and a yes makes a table. Tables seat two or three, so an odd class needs no special case. A third can ask to join a table with room, even once it is playing. Anyone left looking can be seated by the teacher in one tap.
+- **Start the show.** The teacher starts the show when the room looks right. Tables that form later start playing at once.
+- **Play.** Partners take turns; three at a table take turns hosting, playing and watching, so every pair plays. The **host** hides the boat (taps a door), sees the contestant's pick, and must open a door that hides a goat: the app only accepts a legal door and says why when it refuses. The **contestant** picks a door, then stays or switches. The doors swing open on every phone at the table, the boat gets confetti, and anyone at the table starts the next game.
+- **House rule.** The teacher can let contestants choose, or make everyone stay or everyone switch for a while, so both columns of the record fill up.
 - **The record.** The projector and the teacher's dashboard show the win rate for staying and for switching, the share of first picks that were right, and a chart of both rates after each game with 1/3, 1/2 and 2/3 marked. A plain-English line says how often a coin flip would do at least as well as switching did.
 - **The end.** Students answer the question again, then see their own games and the class record. The projector shows the record and the room's beliefs before and after. Games and beliefs export as CSV.
+- **Solo.** `/x/full-monty/solo` plays against Monty, the computer host, with no session or sign-in. It is offered on the join page for anyone without a code. The record lives in the browser.
 
 A design note with the reasoning and the ideas not built is in [docs/full-monty.md](docs/full-monty.md).
 
@@ -45,12 +47,12 @@ open http://localhost:8000
 
 ## Running a class
 
-1. Go to `/admin`, enter your name, and create a **Full Monty** session. Share the join code.
-2. Open the **Presenter view** in a new window and put it on the projector. It shows the join URL, the code and a QR code, then the record.
-3. Students scan the QR code or go to `/join` on their phones and answer the first question. (**Join with QR** on the teacher page shows the same QR full-size if there is no projector.)
-4. **Seat everyone.** Each table's phones take it from there. Seat newcomers as they arrive.
-5. Watch the record fill. Switch the **rule** when one column is short. Reshuffle tables if a pair goes quiet.
-6. **End session** when you are done: students answer the question again and get their summaries; the projector shows the answer.
+1. Go to `/admin`, enter your name, and start a **Full Monty** show. Share the join code.
+2. Open the **Presenter view** in a new window and put it on the projector. It shows the join URL, the code and a QR code, then the tables as they form, then the record.
+3. Students scan the QR code or go to `/join` on their phones, answer the first question, and pick their tables. (**Join with QR** on the teacher page shows the same QR full-size if there is no projector.)
+4. **Start the show** when the room looks right. **Seat everyone still looking** sweeps up stragglers at any point.
+5. Watch the record fill. Change the **house rule** when one column is short.
+6. **End the show** when you are done: students answer the question again and get their summaries; the projector shows the answer.
 
 ## Configuration
 
@@ -85,7 +87,7 @@ statistically-speaking/
 │   ├── experiences/
 │   │   ├── __init__.py      # Experience registry
 │   │   └── full_monty/
-│   │       ├── models.py    # full_monty_pairs, full_monty_games, full_monty_votes
+│   │       ├── models.py    # full_monty_tables/seats/requests/games/votes
 │   │       ├── logic.py     # Doors, tables, the record, plain-English numbers
 │   │       └── routes.py    # Teacher controls, presenter, student play, JSON state, CSV
 │   ├── templates/           # Jinja2 (shared pages + full_monty/)
