@@ -87,7 +87,7 @@ statistically-speaking/
 │   ├── experiences/
 │   │   ├── __init__.py      # Experience registry
 │   │   └── full_monty/
-│   │       ├── models.py    # full_monty_pairs, full_monty_games, full_monty_votes
+│   │       ├── models.py    # full_monty_tables/seats/requests/games/votes
 │   │       ├── logic.py     # Doors, tables, the record, plain-English numbers
 │   │       └── routes.py    # Teacher controls, presenter, student play, JSON state, CSV
 │   ├── templates/           # Jinja2 (shared pages + full_monty/)

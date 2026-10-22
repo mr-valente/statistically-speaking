@@ -255,15 +255,11 @@ def install(snapshot):
                 touched.add(obj.session_id)
             elif getattr(obj, 'session_id', None):
                 touched.add(obj.session_id)
-            elif getattr(obj, 'round_id', None):
-                from app.experiments.flip_flop.models import FlipFlopRound
-                rnd = db.get(FlipFlopRound, obj.round_id)
-                if rnd:
-                    touched.add(rnd.session_id)
 
     @event.listens_for(SessionLocal, 'after_flush_postexec')
     def save_pending(db, context):
         touched = db.info.pop('ecosystem_sessions', set())
+        touched.discard(None)   # a session created in this flush had no id before it
         if touched:
             enqueue(db, touched)
 
