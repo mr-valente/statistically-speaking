@@ -16,13 +16,14 @@ class Experience:
     kind: str            # stored on Session.kind, e.g. "full_monty"
     slug: str            # URL segment under /x/, e.g. "full-monty"
     name: str            # display name
-    glyph: str           # one character for the landing row
+    glyph: str           # one emoji for the landing card
     question: str        # the question the experience asks, one line
-    description: str     # a sentence or two for the landing row
+    description: str     # a sentence or two for the landing card
     router: APIRouter
     new_session_route: str   # url_for name: teacher creates a session
     teacher_route: str       # url_for name(session_id=...): teacher's session dashboard
     student_route: str       # url_for name(session_id=...): student's view
+    solo_route: str | None = None   # url_for name: play alone against the computer, no session needed
 
 
 from app.experiences.full_monty import EXPERIENCE as _full_monty  # noqa: E402

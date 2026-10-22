@@ -20,12 +20,18 @@ def home(request: Request):
                                       context={"request": request, "experiences": list(EXPERIENCES.values())})
 
 
+def solo_experiences():
+    """Experiences that can be played alone, offered on the join page to anyone without a code."""
+    return [e for e in EXPERIENCES.values() if e.solo_route]
+
+
 @router.get("/join", response_class=HTMLResponse)
 def join_form(request: Request, code: str = ""):
     if redirect := ecosystem.login_required(request):
         return redirect
     return templates.TemplateResponse(request=request, name="join.html",
-                                      context={"request": request, "error": None, "code": code.upper()[:6]})
+                                      context={"request": request, "error": None, "code": code.upper()[:6],
+                                               "solo": solo_experiences()})
 
 
 def join_url(request: Request, code: str) -> str:
@@ -46,7 +52,8 @@ def join_qr(code: str, request: Request, db: DBSession = Depends(get_db)):
 
 def _join_error(request: Request, message: str, code: str, status_code: int):
     return templates.TemplateResponse(request=request, name="join.html",
-                                      context={"request": request, "error": message, "code": code},
+                                      context={"request": request, "error": message, "code": code,
+                                               "solo": solo_experiences()},
                                       status_code=status_code)
 
 

@@ -1,10 +1,10 @@
-"""Full Monty game logic: tables of partners, one game at a time, and the class record.
+"""Full Monty game logic: tables students form themselves, one game at a time, and the class record.
 
-The game is the standard one. The host hides the car behind one of three doors.
-The contestant picks a door. The host, who knows where the car is, opens a door
-the contestant did not pick and that hides a goat. The contestant stays with
-the first door or switches to the other closed one. Switching wins whenever the
-first pick was wrong, so it wins two games in three; staying wins the other one.
+The game is the classic one with the prize renamed. The host hides the boat behind one of three
+doors. The contestant picks a door. The host, who knows where the boat is, opens a door the
+contestant did not pick that hides a goat. The contestant stays with the first door or switches
+to the other closed one. Switching wins whenever the first pick was wrong, so it wins two games
+in three; staying wins the other one.
 
 Nothing here says so to a student. The record does.
 """
@@ -18,7 +18,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session as DBSession
 
-from app.experiences.full_monty.models import FullMontyGame, FullMontyPair, FullMontyVote
+from app.experiences.full_monty.models import (FullMontyGame, FullMontyRequest, FullMontySeat, FullMontyTable,
+                                               FullMontyVote, TABLE_SIZE)
 from app.models import Player, Session
 
 DOORS = (1, 2, 3)
@@ -26,14 +27,22 @@ RULES = ("choice", "stay", "switch")       # what the show lets a contestant do 
 DEFAULT_RULE = "choice"
 DECISIONS = ("stay", "switch")
 VOTE_CHOICES = ("switch", "stay", "same")
-SWITCH_WINS, STAY_WINS = 2 / 3, 1 / 3
+IN_PLAY = ("hiding", "picking", "opening", "deciding")
+
+
+class Refused(ValueError):
+    """A move the rules do not allow right now; the message is for the student."""
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ── Doors ──────────────────────────────────────────────────────────────────────
 
-def legal_opens(car: int, pick: int) -> list[int]:
-    """Doors the host may open: not the contestant's, and not the car."""
-    return [d for d in DOORS if d != car and d != pick]
+def legal_opens(boat: int, pick: int) -> list[int]:
+    """Doors the host may open: not the contestant's, and not the boat."""
+    return [d for d in DOORS if d != boat and d != pick]
 
 
 def other_door(pick: int, opened: int) -> int:
@@ -41,103 +50,253 @@ def other_door(pick: int, opened: int) -> int:
     return next(d for d in DOORS if d != pick and d != opened)
 
 
-def outcome(car: int, pick: int, opened: int, decision: str) -> tuple[int, bool]:
+def outcome(boat: int, pick: int, opened: int, decision: str) -> tuple[int, bool]:
     final = pick if decision == "stay" else other_door(pick, opened)
-    return final, final == car
+    return final, final == boat
 
 
-def house_hides() -> int:
+def monty_hides() -> int:
     return secrets.choice(DOORS)
 
 
-def house_opens(car: int, pick: int) -> int:
-    return secrets.choice(legal_opens(car, pick))
+def monty_opens(boat: int, pick: int) -> int:
+    return secrets.choice(legal_opens(boat, pick))
 
 
 # ── Tables ─────────────────────────────────────────────────────────────────────
 
-def active_pairs(db: DBSession, session_id: str) -> list[FullMontyPair]:
-    return (db.query(FullMontyPair).filter_by(session_id=session_id, retired=False)
-            .order_by(FullMontyPair.index.asc()).all())
+def tables(db: DBSession, session_id: str) -> list[FullMontyTable]:
+    """Every table with someone still sitting at it, in table order."""
+    return [t for t in db.query(FullMontyTable).filter_by(session_id=session_id).order_by(FullMontyTable.index.asc())
+            if t.seats]
 
 
-def pair_for(db: DBSession, session_id: str, player_id: str) -> FullMontyPair | None:
-    return (db.query(FullMontyPair)
-            .filter(FullMontyPair.session_id == session_id, FullMontyPair.retired.is_(False),
-                    (FullMontyPair.first_id == player_id) | (FullMontyPair.second_id == player_id))
-            .first())
+def seat_of(db: DBSession, player_id: str) -> FullMontySeat | None:
+    return db.query(FullMontySeat).filter_by(player_id=player_id).first()
 
 
-def unpaired_players(db: DBSession, session: Session) -> list[Player]:
-    seated = set()
-    for pair in active_pairs(db, session.id):
-        seated.update({pair.first_id, pair.second_id})
+def table_of(db: DBSession, player_id: str) -> FullMontyTable | None:
+    seat = seat_of(db, player_id)
+    return seat.table if seat else None
+
+
+def looking(db: DBSession, session: Session) -> list[Player]:
+    """Students who have joined and are not sitting anywhere, in the order they joined."""
+    seated = {s.player_id for s in db.query(FullMontySeat).filter_by(session_id=session.id)}
     return [p for p in db.query(Player).filter_by(session_id=session.id).order_by(Player.created_at.asc())
             if p.id not in seated]
 
 
-def make_pairs(db: DBSession, session: Session, mode: str = "newcomers") -> list[FullMontyPair]:
-    """Seat players at tables. ``newcomers`` seats only the unseated; ``reshuffle`` reseats everyone.
+def _new_table(db: DBSession, session: Session) -> FullMontyTable:
+    last = db.query(FullMontyTable).filter_by(session_id=session.id).order_by(FullMontyTable.index.desc()).first()
+    table = FullMontyTable(session_id=session.id, index=(last.index + 1) if last else 1)
+    db.add(table)
+    db.flush()
+    return table
 
-    A reshuffle retires the current tables and voids any game still in play; revealed games stay in
-    the record. An odd player out is seated with the House, which hosts every game at that table.
-    """
+
+def _sit(db: DBSession, session: Session, table: FullMontyTable, player_id: str) -> None:
+    position = max([s.position for s in table.seats], default=0) + 1
+    db.add(FullMontySeat(session_id=session.id, table_id=table.id, player_id=player_id, position=position))
+    db.flush()
+    db.refresh(table)
+
+
+def _settle(db: DBSession, session: Session, table: FullMontyTable | None) -> None:
+    """After seats change: a playing table keeps playing; a table that lost a player drops its game."""
+    if table is None:
+        return
+    db.refresh(table)
+    game = current_game(db, table)
+    if game is not None and game.status in IN_PLAY and not (
+            game.host_id in table.player_ids and game.contestant_id in table.player_ids):
+        game.status = "void"
+        db.flush()
+    if session.status == "active":
+        ensure_game(db, table)
+
+
+# ── Requests ───────────────────────────────────────────────────────────────────
+
+def _pending(db: DBSession, session_id: str) -> list[FullMontyRequest]:
+    return (db.query(FullMontyRequest).filter_by(session_id=session_id, status="pending")
+            .order_by(FullMontyRequest.created_at.asc()).all())
+
+
+def _resolve(req: FullMontyRequest, status: str) -> None:
+    req.status, req.resolved_at = status, _now()
+
+
+def _why_not(db: DBSession, from_id: str, to_id: str) -> str | None:
+    """Why two students cannot sit together right now, or None if they can."""
+    if from_id == to_id:
+        return "That's you."
+    mine, theirs = table_of(db, from_id), table_of(db, to_id)
+    if mine is not None and theirs is not None:
+        return "You already have a table." if mine.id == theirs.id else "They already have a table."
+    if mine is not None and not mine.room:
+        return "Your table is full."
+    if theirs is not None and not theirs.room:
+        return "That table is full."
+    return None
+
+
+def expire_stale(db: DBSession, session: Session) -> None:
+    """Drop pending requests that seating changes have made impossible."""
+    changed = False
+    for req in _pending(db, session.id):
+        if _why_not(db, req.from_id, req.to_id) is not None:
+            _resolve(req, "expired")
+            changed = True
+    if changed:
+        db.commit()
+
+
+def ask_to_sit(db: DBSession, session: Session, player: Player, target_id: str) -> FullMontyRequest:
+    """Ask another student to sit together. A student has one outgoing request at a time."""
     if session.status == "ended":
-        return []
-    if mode == "reshuffle":
-        for pair in active_pairs(db, session.id):
-            pair.retired = True
-            for game in pair.games:
-                if game.status not in ("revealed", "void"):
-                    game.status = "void"
-        db.flush()
-    players = unpaired_players(db, session)
-    random.shuffle(players)
-    last = db.query(FullMontyPair).filter_by(session_id=session.id).order_by(FullMontyPair.index.desc()).first()
-    index = last.index if last else 0
-    pairs = []
-    for i in range(0, len(players), 2):
-        index += 1
-        first, second = players[i], players[i + 1] if i + 1 < len(players) else None
-        pair = FullMontyPair(session_id=session.id, index=index, first_id=first.id,
-                             second_id=second.id if second else None)
-        db.add(pair)
-        db.flush()
-        start_game(db, pair)
-        pairs.append(pair)
-    if pairs and session.status == "lobby":
-        session.status = "active"
+        raise Refused("The show is over.")
+    target = db.query(Player).filter_by(id=target_id, session_id=session.id).first()
+    if target is None:
+        raise Refused("That student isn't in this show.")
+    reason = _why_not(db, player.id, target.id)
+    if reason:
+        raise Refused(reason)
+    for req in _pending(db, session.id):
+        if req.from_id == player.id:
+            _resolve(req, "cancelled")
+        elif req.from_id == target.id and req.to_id == player.id:
+            # They already asked us: that is a yes.
+            return answer(db, session, player, req.id, True)
+    req = FullMontyRequest(session_id=session.id, from_id=player.id, to_id=target.id)
+    db.add(req)
     db.commit()
-    return pairs
+    db.refresh(req)
+    return req
+
+
+def cancel_ask(db: DBSession, session: Session, player: Player) -> None:
+    for req in _pending(db, session.id):
+        if req.from_id == player.id:
+            _resolve(req, "cancelled")
+    db.commit()
+
+
+def answer(db: DBSession, session: Session, player: Player, request_id: str, accept: bool) -> FullMontyRequest:
+    """Accept or decline a request addressed to this student. Accepting seats both at one table."""
+    req = db.query(FullMontyRequest).filter_by(id=request_id, session_id=session.id, status="pending").first()
+    if req is None or req.to_id != player.id:
+        raise Refused("That request is gone.")
+    if not accept:
+        _resolve(req, "declined")
+        db.commit()
+        return req
+    if session.status == "ended":
+        raise Refused("The show is over.")
+    reason = _why_not(db, req.from_id, req.to_id)
+    if reason:
+        _resolve(req, "expired")
+        db.commit()
+        raise Refused("Too late: " + reason[0].lower() + reason[1:])
+    mine, theirs = table_of(db, player.id), table_of(db, req.from_id)
+    if mine is not None:
+        table, newcomer = mine, req.from_id
+    elif theirs is not None:
+        table, newcomer = theirs, player.id
+    else:
+        table = _new_table(db, session)
+        _sit(db, session, table, req.from_id)
+        newcomer = player.id
+    _sit(db, session, table, newcomer)
+    _resolve(req, "accepted")
+    # Whoever just sat down no longer needs their other requests.
+    for other in _pending(db, session.id):
+        if other.id != req.id and (other.from_id in (player.id, req.from_id)):
+            _resolve(other, "cancelled")
+    _settle(db, session, table)
+    db.commit()
+    expire_stale(db, session)
+    return req
+
+
+def leave_table(db: DBSession, session: Session, player: Player) -> None:
+    """Stand up. A game in play at the table is dropped; whoever is left keeps the table."""
+    seat = seat_of(db, player.id)
+    if seat is None:
+        raise Refused("You're not at a table.")
+    table = seat.table
+    db.delete(seat)
+    db.flush()
+    _settle(db, session, table)
+    db.commit()
+    expire_stale(db, session)
+
+
+def seat_everyone(db: DBSession, session: Session) -> int:
+    """The teacher's broom: sit everyone still looking. Pairs first; a leftover joins a table with room."""
+    if session.status == "ended":
+        return 0
+    players = looking(db, session)
+    random.shuffle(players)
+    seated = 0
+    while len(players) >= 2:
+        table = _new_table(db, session)
+        size = 3 if len(players) == 3 else 2
+        group, players = players[:size], players[size:]
+        for p in group:
+            _sit(db, session, table, p.id)
+            seated += 1
+        _settle(db, session, table)
+    if players:
+        open_tables = sorted((t for t in tables(db, session.id) if t.room), key=lambda t: (len(t.seats), t.index))
+        table = open_tables[0] if open_tables else _new_table(db, session)
+        _sit(db, session, table, players[0].id)
+        seated += 1
+        _settle(db, session, table)
+    db.commit()
+    expire_stale(db, session)
+    return seated
+
+
+def start_show(db: DBSession, session: Session) -> None:
+    """Lobby to active: every table with two or three students gets its first game."""
+    if session.status != "lobby":
+        return
+    session.status = "active"
+    db.flush()
+    for table in tables(db, session.id):
+        ensure_game(db, table)
+    db.commit()
 
 
 # ── Games ──────────────────────────────────────────────────────────────────────
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def current_game(db: DBSession, pair: FullMontyPair) -> FullMontyGame | None:
-    return (db.query(FullMontyGame).filter_by(pair_id=pair.id)
+def current_game(db: DBSession, table: FullMontyTable) -> FullMontyGame | None:
+    return (db.query(FullMontyGame).filter_by(table_id=table.id)
             .order_by(FullMontyGame.index.desc()).first())
 
 
-def start_game(db: DBSession, pair: FullMontyPair) -> FullMontyGame:
-    """The next game at a table. Partners swap roles each game; the House always hosts."""
-    latest = current_game(db, pair)
-    if latest is not None and latest.status not in ("revealed", "void"):
+def roles_for(index: int, player_ids: list[str]) -> tuple[str, str]:
+    """Game ``index`` at a table: the host and the contestant walk around the table together.
+
+    Two students alternate. Three take turns hosting, playing, and watching, so every pair plays."""
+    n = len(player_ids)
+    return player_ids[(index - 1) % n], player_ids[index % n]
+
+
+def ensure_game(db: DBSession, table: FullMontyTable) -> FullMontyGame | None:
+    """The next game at a table, if it has partners and no game in play."""
+    db.refresh(table)
+    ids = table.player_ids
+    if len(ids) < 2:
+        return None
+    latest = current_game(db, table)
+    if latest is not None and latest.status in IN_PLAY:
         return latest
     index = (latest.index + 1) if latest else 1
-    if pair.house:
-        host, contestant = None, pair.first_id
-    elif index % 2:
-        host, contestant = pair.first_id, pair.second_id
-    else:
-        host, contestant = pair.second_id, pair.first_id
-    game = FullMontyGame(session_id=pair.session_id, pair_id=pair.id, index=index,
+    host, contestant = roles_for(index, ids)
+    game = FullMontyGame(session_id=table.session_id, table_id=table.id, index=index,
                          host_id=host, contestant_id=contestant)
-    if pair.house:
-        game.car, game.status = house_hides(), "picking"
     db.add(game)
     db.flush()
     return game
@@ -151,37 +310,31 @@ def role_of(game: FullMontyGame, player_id: str) -> str | None:
     return None
 
 
-class Refused(ValueError):
-    """A move the rules do not allow right now; the message is for the student."""
-
-
-def hide_car(db: DBSession, game: FullMontyGame, player: Player, door: int) -> None:
+def hide_boat(db: DBSession, game: FullMontyGame, player: Player, door: int) -> None:
     if role_of(game, player.id) != "host" or game.status != "hiding":
-        raise Refused("It is not your turn to hide the car.")
+        raise Refused("It's not your turn to hide the boat.")
     if door not in DOORS:
         raise Refused("Pick door 1, 2 or 3.")
-    game.car, game.status = door, "picking"
+    game.boat, game.status = door, "picking"
     db.commit()
 
 
 def pick_door(db: DBSession, game: FullMontyGame, player: Player, door: int) -> None:
     if role_of(game, player.id) != "contestant" or game.status != "picking":
-        raise Refused("It is not your turn to pick a door.")
+        raise Refused("It's not your turn to pick a door.")
     if door not in DOORS:
         raise Refused("Pick door 1, 2 or 3.")
     game.pick, game.status = door, "opening"
-    if game.house:
-        game.opened, game.status = house_opens(game.car, game.pick), "deciding"
     db.commit()
 
 
 def open_door(db: DBSession, game: FullMontyGame, player: Player, door: int) -> None:
     if role_of(game, player.id) != "host" or game.status != "opening":
-        raise Refused("It is not your turn to open a door.")
+        raise Refused("It's not your turn to open a door.")
     if door == game.pick:
-        raise Refused("That is the contestant's door. Open one of the others.")
-    if door == game.car:
-        raise Refused("That door hides the car. Open a goat.")
+        raise Refused("That's the contestant's door. Open one of the others.")
+    if door == game.boat:
+        raise Refused("That door hides the boat! Open a goat.")
     if door not in DOORS:
         raise Refused("Pick door 1, 2 or 3.")
     game.opened, game.status = door, "deciding"
@@ -190,24 +343,24 @@ def open_door(db: DBSession, game: FullMontyGame, player: Player, door: int) -> 
 
 def decide(db: DBSession, game: FullMontyGame, player: Player, decision: str, rule: str) -> None:
     if role_of(game, player.id) != "contestant" or game.status != "deciding":
-        raise Refused("It is not your decision right now.")
+        raise Refused("It's not your decision right now.")
     if decision not in DECISIONS:
         raise Refused("Stay or switch.")
     if rule != "choice" and decision != rule:
-        raise Refused(f"The rule right now is to {rule}.")
+        raise Refused(f"The house rule right now is to {rule}.")
     game.decision, game.rule = decision, rule
-    game.final, game.won = outcome(game.car, game.pick, game.opened, decision)
+    game.final, game.won = outcome(game.boat, game.pick, game.opened, decision)
     game.status, game.revealed_at = "revealed", _now()
     db.commit()
 
 
 def next_game(db: DBSession, game: FullMontyGame, player: Player) -> FullMontyGame:
-    """Either partner starts the next game once this one is revealed; a second tap changes nothing."""
-    if role_of(game, player.id) is None:
-        raise Refused("This is not your table.")
+    """Anyone at the table starts the next game once this one is revealed; a second tap changes nothing."""
+    if player.id not in game.table.player_ids:
+        raise Refused("This isn't your table.")
     if game.status != "revealed":
         raise Refused("Finish this game first.")
-    started = start_game(db, game.pair)
+    started = ensure_game(db, game.table)
     db.commit()
     return started
 
@@ -219,24 +372,30 @@ def set_rule(db: DBSession, session: Session, rule: str) -> None:
 
 
 def end_session(db: DBSession, session: Session) -> None:
-    """Close the classroom; a game still in play is voided and leaves no mark on the record."""
-    for pair in active_pairs(db, session.id):
-        for game in pair.games:
-            if game.status not in ("revealed", "void"):
-                game.status = "void"
+    """Close the show; a game still in play is dropped and leaves no mark on the record."""
+    for game in db.query(FullMontyGame).filter_by(session_id=session.id):
+        if game.status in IN_PLAY:
+            game.status = "void"
+    for req in _pending(db, session.id):
+        _resolve(req, "expired")
     session.status, session.ended_at = "ended", _now()
     db.commit()
 
 
 # ── Beliefs ────────────────────────────────────────────────────────────────────
 
+def has_played(db: DBSession, player_id: str) -> bool:
+    table = table_of(db, player_id)
+    return table is not None and current_game(db, table) is not None
+
+
 def cast_vote(db: DBSession, session: Session, player: Player, phase: str, choice: str) -> FullMontyVote:
-    """``before`` is open until the student is seated; ``after`` opens when the session ends."""
+    """``before`` is open until the student's table starts playing; ``after`` opens when the show ends."""
     if choice not in VOTE_CHOICES:
         raise Refused("Choose switch, stay or no difference.")
     if phase == "before":
-        if session.status == "ended" or pair_for(db, session.id, player.id) is not None:
-            raise Refused("The first question closed when you were seated.")
+        if session.status == "ended" or has_played(db, player.id):
+            raise Refused("The first question closed when your table started playing.")
     elif phase == "after":
         if session.status != "ended":
             raise Refused("The second question comes at the end.")
@@ -275,7 +434,7 @@ def tallies(games: list[FullMontyGame]) -> dict:
         arm = out[g.decision]
         arm["n"] += 1
         arm["wins"] += 1 if g.won else 0
-        out["first_pick_right"] += 1 if g.pick == g.car else 0
+        out["first_pick_right"] += 1 if g.pick == g.boat else 0
     for arm in (out["stay"], out["switch"]):
         arm["rate"] = (arm["wins"] / arm["n"]) if arm["n"] else None
         arm["surprise"] = no_effect_surprise(arm["wins"], arm["n"])
@@ -329,7 +488,7 @@ def class_summary(db: DBSession, session: Session) -> dict:
     games = revealed_games(db, session.id)
     t = tallies(games)
     return {"tallies": t, "series": series(games), "votes": votes_summary(db, session.id),
-            "tables": len(active_pairs(db, session.id)),
+            "tables": len(tables(db, session.id)),
             "text": {arm: describe_surprise(arm, t[arm]["wins"], t[arm]["n"]) for arm in DECISIONS}}
 
 
@@ -341,5 +500,5 @@ def player_summary(db: DBSession, session: Session, player: Player) -> dict:
     votes = {v.phase: v.choice for v in db.query(FullMontyVote).filter_by(player_id=player.id)}
     return {"played": len(mine), "hosted": hosted, "stay": record["stay"], "switch": record["switch"],
             "first_pick_right": record["first_pick_right"], "votes": votes,
-            "games": [{"index": g.index, "table": g.pair.index, "car": g.car, "pick": g.pick, "opened": g.opened,
+            "games": [{"index": g.index, "table": g.table.index, "boat": g.boat, "pick": g.pick, "opened": g.opened,
                        "decision": g.decision, "final": g.final, "won": g.won} for g in mine]}

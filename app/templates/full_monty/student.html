@@ -1,29 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Full Monty · Statistically Speaking{% endblock %}
-{% block nav_links %}<span class="nav-who">{{ player.name }}</span>{% endblock %}
+{% block container_class %}container-play student{% endblock %}
+{% block nav_links %}<span class="navbar-who">🎓 {{ player.name }}</span>{% endblock %}
 {% block content %}
-<article class="narrow student" id="student" data-state-url="{{ state_url }}" data-act-url="{{ act_url }}" data-vote-url="{{ vote_url }}" data-name="{{ player.name }}">
+<div id="student" data-state-url="{{ state_url }}" data-act-url="{{ act_url }}" data-seat-url="{{ seat_url }}" data-vote-url="{{ vote_url }}" data-me="{{ player.id }}">
+  <div id="inbox"></div>
+
   <section class="phase" id="phase-lobby" hidden>
-    <h1>You're in, {{ player.name }}.</h1>
+    <h2>You're in, {{ player.name }}! 🎉</h2>
     <div id="before-vote"></div>
-    <p class="sub" id="lobby-note">Waiting for your teacher to seat everyone.</p>
+    <div class="card lobby-card">
+      <h3 id="lobby-title">Find a table</h3>
+      <p class="sub" id="lobby-note"></p>
+      <div id="my-table"></div>
+      <div id="asked"></div>
+      <div id="looking"></div>
+      <div id="tables"></div>
+    </div>
   </section>
 
   <section class="phase" id="phase-play" hidden>
-    <p class="table-line" id="table-line"></p>
+    <div class="round-head"><span id="table-line"></span> <span class="badge" id="role-badge"></span></div>
     <p class="prompt" id="prompt"></p>
-    <div class="doors" id="doors"></div>
+    <div class="stage"><div class="doors" id="doors"></div></div>
     <div class="panel" id="panel"></div>
-    <p class="error" id="error" hidden></p>
-    <p class="muted small" id="table-record"></p>
+    <p class="toast-err" id="error" hidden></p>
+    <p class="sub small" id="table-record"></p>
+    <p class="sub small"><button type="button" class="btn btn-ghost btn-sm" id="leave">Leave this table</button></p>
   </section>
 
   <section class="phase" id="phase-ended" hidden>
-    <h1>That's the show, {{ player.name }}.</h1>
+    <h2>That's a wrap, {{ player.name }}! 🎬</h2>
     <div id="after-vote"></div>
-    <div id="summary"></div>
+    <div class="summary" id="summary"></div>
+    <p><a class="btn btn-gold" href="{{ solo_url }}">Keep playing against Monty</a></p>
   </section>
-</article>
+</div>
 {% endblock %}
 {% block scripts %}
 <script src="{{ request.url_for('static', path='show.js') }}"></script>

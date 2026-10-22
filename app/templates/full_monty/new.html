@@ -1,17 +1,18 @@
 {% extends "base.html" %}
-{% block title %}New Full Monty session · Statistically Speaking{% endblock %}
+{% block title %}New Full Monty show · Statistically Speaking{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
 {% block nav_links %}{% include "_teacher_nav.html" %}{% endblock %}
 {% block content %}
-<article class="narrow">
-  <p class="ath-eyebrow"><span>Set up</span>Full Monty</p>
-  <h1>Full Monty</h1>
-  <p class="muted">Students pair up at tables and take turns hosting and playing. Each game lands in the class record. A session takes about twenty minutes of play.</p>
+<div class="card">
+  <div class="exp-emoji">🚪</div>
+  <h2>Full Monty</h2>
+  <p class="muted mb-1">Students pick their own tables of two or three and take turns hosting and playing. Plan on about twenty minutes.</p>
   <form method="post" action="{{ request.url_for('full_monty_create') }}">
-    <div class="field">
-      <label for="label">Label (optional, for your session list)</label>
-      <input type="text" id="label" name="label" maxlength="40" placeholder="Period 3">
+    <div class="form-group">
+      <label for="label">Label (optional, for your list of shows)</label>
+      <input type="text" id="label" name="label" class="form-control" maxlength="40" placeholder="Period 3">
     </div>
-    <button type="submit" class="btn btn-primary btn-large btn-block">Create session</button>
+    <button type="submit" class="btn btn-primary btn-lg btn-block">Start a show</button>
   </form>
-</article>
+</div>
 {% endblock %}

@@ -1,5 +1,6 @@
-/* Shared front-end for Statistically Speaking: polling, the doors, the record, the chart and the
-   belief bars. Plain JS, no dependencies, no inline scripts: pages hand their URLs over in data attributes. */
+/* Shared front-end for Statistically Speaking: polling, the doors on the stage, the record, the chart,
+   the belief bars and the room board. Plain JS, no dependencies, no inline scripts: pages hand their
+   URLs over in data attributes. */
 (function (global) {
   'use strict';
 
@@ -19,6 +20,8 @@
   function pct(x, digits) {
     return x == null ? '—' : (x * 100).toFixed(digits || 0) + '%';
   }
+
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
 
   function fetchJSON(url, body) {
     var init = { cache: 'no-store' };
@@ -45,44 +48,80 @@
     return { now: tick, stop: function () { if (timer) clearInterval(timer); timer = null; } };
   }
 
-  /* ── Doors ─────────────────────────────────────────────────────────────── */
-  var GOAT = '🐐', CAR = '🚗';
+  /* ── The doors ─────────────────────────────────────────────────────────── */
+  var GOAT = '🐐', BOAT = '🚤';
 
-  /* spec: { status, role, pick, opened, car, final, won, legal, selectable: [doors], onSelect } */
+  /* The three doors are built once per container and updated in place, so the panels swing and the
+     prizes pop instead of flashing. spec: { status, role, pick, opened, boat, final, won, selectable,
+     onSelect, mine } where mine is the word for the contestant's door ("your" or a name). */
   function doors(container, spec) {
-    container.innerHTML = '';
+    if (!container._doors) {
+      container._doors = [1, 2, 3].map(function (d) {
+        var b = el('button', 'door');
+        b.type = 'button';
+        var room = el('div', 'door-room');
+        room.appendChild(el('span', 'door-prize'));
+        var panel = el('div', 'door-panel');
+        panel.appendChild(el('span', 'door-num', String(d)));
+        panel.appendChild(el('i', 'door-knob'));
+        b.appendChild(room);
+        b.appendChild(panel);
+        b.appendChild(el('span', 'door-tag'));
+        b.addEventListener('click', function () {
+          var s = container._spec;
+          if (s && s.selectable && s.selectable.indexOf(d) !== -1 && s.onSelect) s.onSelect(d);
+        });
+        container.appendChild(b);
+        return b;
+      });
+    }
+    container._spec = spec;
     var revealed = spec.status === 'revealed';
     var selectable = spec.selectable || [];
-    var mine = spec.role === 'contestant' ? 'your' : 'their';
-    [1, 2, 3].forEach(function (d) {
+    var mine = spec.mine || 'your';
+    container._doors.forEach(function (b, i) {
+      var d = i + 1;
       var isOpen = spec.opened === d || revealed;
-      var b = el('button', 'door');
-      b.type = 'button';
+      var boat = spec.boat === d;
+      var prize = b.querySelector('.door-prize');
       var tag = '';
+      b.classList.toggle('open', isOpen);
+      b.classList.toggle('pick', spec.pick === d);
+      b.classList.toggle('boat-known', !isOpen && boat);
+      b.classList.toggle('won', revealed && spec.final === d && !!spec.won);
+      b.classList.toggle('lost', revealed && spec.final === d && !spec.won);
+      b.classList.toggle('selectable', selectable.indexOf(d) !== -1);
       if (isOpen) {
-        b.classList.add('open');
-        var car = spec.car === d;
-        b.appendChild(el('span', 'glyph', car ? CAR : GOAT));
-        tag = car ? 'car' : 'goat';
-        if (revealed && spec.final === d) {
-          b.classList.add(spec.won ? 'won' : 'lost');
-          tag = mine + ' door · ' + tag;
-        }
+        prize.textContent = boat ? BOAT : GOAT;
+        prize.className = 'door-prize ' + (boat ? 'boat' : 'goat');
+        if (revealed && spec.final === d) tag = (spec.won ? '🏆 ' : '') + mine + ' door';
+        else tag = boat ? 'the boat' : 'goat';
       } else {
-        b.appendChild(el('span', 'num', String(d)));
-        if (spec.pick === d) { b.classList.add('pick'); tag = mine + ' pick'; }
-        else if (spec.car === d) { b.classList.add('car-known'); tag = 'car'; }
+        if (!boat) { prize.textContent = ''; prize.className = 'door-prize'; }
+        if (spec.pick === d) tag = mine + ' pick';
+        else if (boat) tag = 'boat · shh';
       }
-      b.appendChild(el('span', 'tag', tag));
+      b.querySelector('.door-tag').textContent = tag;
       b.setAttribute('aria-label', 'Door ' + d + (tag ? ', ' + tag : ''));
-      if (selectable.indexOf(d) !== -1) {
-        b.classList.add('selectable');
-        b.addEventListener('click', function () { spec.onSelect(d); });
-      } else {
-        b.disabled = true;
-      }
-      container.appendChild(b);
+      b.disabled = selectable.indexOf(d) === -1;
     });
+  }
+
+  /* A burst of confetti over a stage. Positions and colours go through the CSSOM, never inline markup. */
+  function confetti(stage) {
+    if (!stage || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var box = el('div', 'confetti');
+    var colours = ['#f5c518', '#6c63ff', '#22c55e', '#ef4444', '#3b82f6', '#fff3b0'];
+    for (var i = 0; i < 48; i++) {
+      var bit = el('i');
+      bit.style.left = (Math.random() * 100) + '%';
+      bit.style.background = colours[i % colours.length];
+      bit.style.animationDelay = (Math.random() * 0.8) + 's';
+      bit.style.animationDuration = (2 + Math.random() * 1.2) + 's';
+      box.appendChild(bit);
+    }
+    stage.appendChild(box);
+    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 4200);
   }
 
   /* ── The record ────────────────────────────────────────────────────────── */
@@ -94,6 +133,7 @@
     var bar = el('div', 'bar'), fill = el('div', 'bar-fill'), mark = el('i', 'bar-mark');
     fill.style.width = pct(data.rate || 0);
     mark.style.left = pct(expected);
+    mark.dataset.label = expected > 0.5 ? '2/3' : '1/3';
     mark.title = 'expected ' + pct(expected);
     bar.appendChild(fill); bar.appendChild(mark);
     a.appendChild(bar);
@@ -105,7 +145,7 @@
     var r = el('div', 'record');
     r.appendChild(arm('stay', 'Stay', t.stay, 1 / 3));
     r.appendChild(arm('switch', 'Switch', t.switch, 2 / 3));
-    var foot = t.games + ' game' + (t.games === 1 ? '' : 's');
+    var foot = plural(t.games, 'game');
     if (t.games) foot += ' · the first pick was right ' + pct(t.first_pick_rate) + ' of the time (' + t.first_pick_right + ' of ' + t.games + ')';
     r.appendChild(el('p', 'record-foot', foot));
     container.appendChild(r);
@@ -192,6 +232,74 @@
     container.appendChild(box);
   }
 
+  /* ── The room: tables as they stand, and who is still looking ──────────── */
+  function tableStatus(t, status) {
+    if (t.members.length < 2) return 'waiting for a partner';
+    if (status === 'lobby') return 'ready · waiting for the show to start';
+    if (t.game && t.game.playing) return 'game ' + t.game.index + ' · ' + t.game.host + ' hosts';
+    if (t.game) return plural(t.played, 'game') + ' played';
+    return 'ready';
+  }
+
+  function room(container, room, status, me) {
+    container.innerHTML = '';
+    room.tables.forEach(function (t) {
+      var box = el('div', 'tbl' + (t.game && t.game.playing ? ' playing' : ''));
+      var head = el('div', 'tbl-head');
+      head.appendChild(el('span', null, 'Table ' + t.index));
+      head.appendChild(el('span', null, t.members.length + '/' + t.size));
+      box.appendChild(head);
+      var chips = el('div', 'chips');
+      t.members.forEach(function (m) {
+        var cls = 'chip';
+        if (t.game && t.game.playing) {
+          if (m.name === t.game.host) cls += ' host';
+          else if (m.name === t.game.contestant) cls += ' contestant';
+        }
+        if (me && m.id === me) cls += ' me';
+        var prefix = cls.indexOf(' host') !== -1 ? '🎤 ' : cls.indexOf(' contestant') !== -1 ? '🎯 ' : '';
+        chips.appendChild(el('span', cls, prefix + m.name));
+      });
+      box.appendChild(chips);
+      box.appendChild(el('div', 'tbl-status', tableStatus(t, status)));
+      container.appendChild(box);
+    });
+    if (room.looking.length) {
+      var box = el('div', 'tbl looking');
+      box.appendChild(el('div', 'tbl-head', 'Still looking'));
+      var chips = el('div', 'chips');
+      room.looking.forEach(function (p) { chips.appendChild(el('span', 'chip' + (me && p.id === me ? ' me' : ''), p.name)); });
+      box.appendChild(chips);
+      container.appendChild(box);
+    }
+  }
+
+  /* ── The plain-English numbers (mirrors logic.py for the solo page) ────── */
+  function surprise(wins, n) {
+    if (!n) return null;
+    // Upper binomial tail at p = 1/2, summed in log space so large records stay finite.
+    var total = 0;
+    for (var k = wins; k <= n; k++) {
+      var lc = 0;
+      for (var i = 1; i <= k; i++) lc += Math.log(n - k + i) - Math.log(i);
+      total += Math.exp(lc - n * Math.LN2);
+    }
+    return Math.min(total, 1);
+  }
+
+  function describe(decision, wins, n) {
+    var p = surprise(wins, n);
+    if (p == null) return 'Nobody has ' + (decision === 'switch' ? 'switched' : 'stayed') + ' yet.';
+    var verb = decision === 'switch' ? 'switching' : 'staying';
+    var head = 'If ' + verb + ' made no difference, winning at least ' + wins + ' of ' + n + ' would happen';
+    if (p >= 0.5) return head + ' more than half the time.';
+    if (p >= 0.2) return head + ' about ' + Math.round(p * 100) + '% of the time.';
+    var oneIn = p > 0 ? Math.round(1 / p) : null;
+    if (oneIn == null || oneIn > 1000000) return head + ' less than once in a million tries.';
+    var pc = p >= 0.01 ? (p * 100).toFixed(1) : (p * 100).toFixed(2);
+    return head + ' about ' + pc + '% of the time, roughly 1 in ' + oneIn.toLocaleString() + '.';
+  }
+
   /* Forms that ask before they act carry their question in data-confirm. */
   function confirmForms() {
     document.querySelectorAll('form[data-confirm]').forEach(function (form) {
@@ -207,6 +315,7 @@
     dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
   }
 
-  global.Show = { el: el, pct: pct, fetchJSON: fetchJSON, poll: poll, doors: doors, record: record,
-                  chart: chart, beliefs: beliefs, confirmForms: confirmForms, qrDialog: qrDialog };
+  global.Show = { el: el, pct: pct, plural: plural, fetchJSON: fetchJSON, poll: poll, doors: doors, confetti: confetti,
+                  record: record, chart: chart, beliefs: beliefs, room: room, surprise: surprise, describe: describe,
+                  confirmForms: confirmForms, qrDialog: qrDialog, GOAT: GOAT, BOAT: BOAT };
 })(window);

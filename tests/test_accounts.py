@@ -91,31 +91,41 @@ class HostedTests(ServerTest):
         status, body = bob.json("GET", f"{X}/s/{session_id}/state")
         self.assertEqual(body["you"]["name"], "Bob")
 
-        # Bob's seat follows his account to another browser; the game state comes with it.
-        teacher.post(f"{X}/t/{session_id}/pairs", form={"mode": "newcomers"})
+        # Bob asks Gus to sit together; Gus says yes. Bob's seat follows his account to another browser.
+        bob_id = bob.json("GET", f"{X}/s/{session_id}/state")[1]["you"]["id"]
+        self.assertEqual(bob.json("POST", f"{X}/s/{session_id}/seating", payload={"action": "ask", "player": bob_id})[0], 409)
+        gus_id = gus.json("GET", f"{X}/s/{session_id}/state")[1]["you"]["id"]
+        bob.json("POST", f"{X}/s/{session_id}/seating", payload={"action": "ask", "player": gus_id})
+        req = gus.json("GET", f"{X}/s/{session_id}/state")[1]["you"]["inbox"][0]
+        self.assertEqual(req["from"], "Bob")
+        gus.json("POST", f"{X}/s/{session_id}/seating", payload={"action": "accept", "request": req["id"]})
+        teacher.post(f"{X}/t/{session_id}/start")
         other = self.signed_in("bob-token")
         status, body = other.json("GET", f"{X}/s/{session_id}/state")
-        self.assertEqual((status, body["you"]["name"], body["table"]["index"]), (200, "Bob", 1))
+        self.assertEqual((status, body["you"]["name"], body["table"]["index"], body["game"]["role"]), (200, "Bob", 1, "host"))
 
         # Play one game through; only the Google-linked contestant's revealed game is published.
-        tables = teacher.json("GET", f"{X}/t/{session_id}/state")[1]["tables"][0]
-        host, contestant = (bob, gus) if tables["first"] == "Bob" else (gus, bob)
+        host, contestant = bob, gus
         self.act(host, session_id, "hide", door=1)
         self.act(contestant, session_id, "pick", door=2)
         self.act(host, session_id, "open", door=3)
         g = self.act(contestant, session_id, "decide", decision="switch")[1]["game"]
+        self.assertTrue(g["won"])
+        # Gus is a guest, so nothing is published for game 1. Game 2: Gus hosts Bob.
+        self.act(contestant, session_id, "next", game=g["id"])
+        self.act(gus, session_id, "hide", door=2)
+        self.act(bob, session_id, "pick", door=2)
+        self.act(gus, session_id, "open", door=1)
+        g = self.act(bob, session_id, "decide", decision="stay")[1]["game"]
         self.assertTrue(g["won"])
         for _ in range(100):
             if self.accounts.records:
                 break
             time.sleep(0.2)
         published = [r for r in self.accounts.records if r["activity"] == "full_monty"]
-        if contestant is bob:
-            self.assertEqual(len(published), 1)
-            self.assertEqual((published[0]["user_id"], published[0]["metrics"]), ("bob", {"decision": "switch", "won": True, "first_pick_right": False}))
-            self.assertEqual(published[0]["context"]["classroom_id"], session_id)
-        else:
-            self.assertEqual(published, [])  # a guest's result is not published
+        self.assertEqual(len(published), 1)
+        self.assertEqual((published[0]["user_id"], published[0]["metrics"]), ("bob", {"decision": "stay", "won": True, "first_pick_right": True}))
+        self.assertEqual((published[0]["context"]["classroom_id"], published[0]["context"]["table"], published[0]["context"]["game"]), (session_id, 1, 2))
         # The app account page is served when hosted.
         status, _, page = bob.get("/account")
         self.assertEqual(status, 200)

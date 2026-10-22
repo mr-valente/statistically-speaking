@@ -1,25 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Join · Statistically Speaking{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
 {% block content %}
-<article class="narrow">
-  <h1>Join</h1>
-  {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+<div class="card">
+  <h2>🎟 Join the show</h2>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
   <form method="post" action="{{ request.url_for('join_session') }}">
-    <div class="field">
+    <div class="form-group">
       <label for="join_code">Join code</label>
-      <input type="text" id="join_code" name="join_code" class="code-input" maxlength="6" required
-             autocomplete="off" autocapitalize="characters" spellcheck="false" value="{{ code }}">
+      <input type="text" id="join_code" name="join_code" class="form-control code-input" maxlength="6" required
+             autocomplete="off" autocapitalize="characters" spellcheck="false" value="{{ code }}" placeholder="ABC123">
     </div>
     {% if request.state.ecosystem_account %}
-    <p>Joining as {{ request.state.ecosystem_account.name }} · <a href="/account/?return_to={{ request.url_for('join_form').path|urlencode }}%3Fcode%3D{{ code|default('')|urlencode }}">Change name</a></p>
+    <p class="muted small mb-1">Joining as <strong>{{ request.state.ecosystem_account.name }}</strong> · <a href="/account/?return_to={{ request.url_for('join_form').path|urlencode }}%3Fcode%3D{{ code|default('')|urlencode }}">Change name</a></p>
     {% else %}
-    <div class="field">
+    <div class="form-group">
       <label for="player_name">Your name</label>
-      <input type="text" id="player_name" name="player_name" maxlength="60" required autocomplete="off" {% if code %}autofocus{% endif %}>
+      <input type="text" id="player_name" name="player_name" class="form-control" maxlength="60" required autocomplete="off" {% if code %}autofocus{% endif %}>
     </div>
     {% endif %}
-    <button type="submit" class="btn btn-primary btn-large btn-block">Join</button>
+    <button type="submit" class="btn btn-primary btn-lg btn-block">Come on down!</button>
   </form>
-  <p class="muted small">Returning from this browser brings you back to your seat.</p>
-</article>
+  <p class="muted small mt-1 mb-0">Come back in this browser and you'll land right back in your seat.</p>
+</div>
+{% if solo %}
+<div class="or-line"><span>no code?</span></div>
+{% for exp in solo %}
+<a href="{{ request.url_for(exp.solo_route) }}" class="btn btn-gold btn-lg btn-block">{{ exp.glyph }} Play {{ exp.name }} solo vs. Monty</a>
+{% endfor %}
+{% endif %}
 {% endblock %}

@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Teacher · Statistically Speaking{% endblock %}
+{% block container_class %}container-narrow{% endblock %}
 {% block content %}
-<article class="narrow">
-  <h1>Teacher</h1>
-  {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+<div class="card">
+  <h2>🎬 Teacher</h2>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
   <form method="post" action="{{ request.url_for('admin_login') }}">
-    <div class="field">
+    <div class="form-group">
       <label for="teacher_name">Your name</label>
-      <input type="text" id="teacher_name" name="teacher_name" maxlength="60" required
+      <input type="text" id="teacher_name" name="teacher_name" class="form-control" maxlength="60" required
              {% if request.state.ecosystem_account and request.state.ecosystem_account.kind == 'google' %}value="{{ request.state.ecosystem_account.name }}" readonly{% endif %}>
     </div>
-    <button type="submit" class="btn btn-primary btn-large btn-block">Open the dashboard</button>
+    <button type="submit" class="btn btn-primary btn-lg btn-block">Open the dashboard</button>
   </form>
-</article>
+</div>
 {% endblock %}
