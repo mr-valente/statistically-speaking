@@ -13,12 +13,12 @@
     </div>
     <div class="row">
       <a href="{{ request.url_for('full_monty_present', session_id=session.id) }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">Presenter view ↗</a>
-      {% if session.status != 'ended' %}<button type="button" class="btn btn-sm btn-ghost" id="qr-open">Join with QR</button>{% endif %}
+      {% if session.status != 'ended' %}<button type="button" class="btn btn-sm btn-ghost" data-dialog="qr-dialog">Join with QR</button>{% endif %}
       <a href="{{ request.url_for('full_monty_export', session_id=session.id) }}" class="btn btn-sm btn-ghost">Games CSV</a>
-      <a href="{{ request.url_for('full_monty_export_votes', session_id=session.id) }}" class="btn btn-sm btn-ghost">Beliefs CSV</a>
+      {% if survey %}<a href="{{ request.url_for('full_monty_export_votes', session_id=session.id) }}" class="btn btn-sm btn-ghost">Beliefs CSV</a>{% endif %}
       {% if session.status != 'ended' %}
       <form method="post" action="{{ request.url_for('full_monty_end', session_id=session.id) }}" id="end-form"
-            data-confirm="End the show? Games in play are dropped and students are asked the question once more.">
+            data-confirm="End the show? Games in play are dropped{% if survey %} and students are asked the question once more{% endif %}.">
         <button type="submit" class="btn btn-sm btn-danger">End the show</button>
       </form>
       {% endif %}
@@ -28,7 +28,7 @@
   {% if session.status == 'lobby' %}
   <div class="alert alert-gold">Students join at <span class="code">{{ join_url }}</span> with code <span class="code">{{ session.join_code }}</span>, or scan the QR code on the presenter view. Start the show once the tables look right.</div>
   {% elif session.status == 'ended' %}
-  <div class="alert alert-info">The show is over. Students answer the question once more and see their own record.</div>
+  <div class="alert alert-info">The show is over. Students {% if survey %}answer the question once more and {% endif %}see their own record.</div>
   {% endif %}
 
   <div class="grid-3-2">
@@ -62,9 +62,17 @@
           <label class="check"><input type="radio" name="rule" value="{{ r }}"{% if r == rule %} checked{% endif %}>
             {% if r == 'choice' %}Contestants choose{% elif r == 'stay' %}Everyone stays{% else %}Everyone switches{% endif %}</label>
           {% endfor %}
-          <button type="submit" class="btn btn-sm btn-ghost">Apply</button>
+          <button type="submit" class="btn btn-sm btn-ghost js-hide">Apply</button>
         </form>
         <p class="muted small mb-0">Applies to decisions from now on.</p>
+      </div>
+
+      <div class="card">
+        <h3>Belief question</h3>
+        <form method="post" action="{{ request.url_for('full_monty_survey', session_id=session.id) }}" id="survey-form">
+          <label class="check"><input type="checkbox" name="survey"{% if survey %} checked{% endif %}> Ask what students believe, before they play and when the show ends</label>
+        </form>
+        <p class="muted small mb-0">{% if survey %}Students answer while they wait for a table.{% else %}Off. Students get a goat and a boat to poke while they wait.{% endif %}</p>
       </div>
       {% endif %}
 
@@ -84,21 +92,23 @@
         <svg id="chart" class="chart" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
         <p class="small muted mb-0" id="surprise"></p>
       </div>
+      {% if survey %}
       <div class="card">
         <h3>What the room believes</h3>
         <div id="beliefs"></div>
         <p class="muted small mb-0">Asked before each table starts playing, and again when the show ends.</p>
       </div>
+      {% endif %}
     </div>
   </div>
 
   {% if session.status != 'ended' %}
-  <dialog class="qr-dialog" id="qr-dialog">
-    <div class="qr-dialog-body">
+  <dialog class="dialog" id="qr-dialog">
+    <div class="dialog-body">
       <h2>Scan to join</h2>
       <div class="qr-card"><img src="{{ qr_url }}" alt="QR code that opens the join page with the code filled in"></div>
       <p>Or go to <span class="code">{{ join_url }}</span> and enter <span class="code code-large">{{ session.join_code }}</span></p>
-      <button type="button" class="btn btn-ghost" id="qr-close">Close</button>
+      <button type="button" class="btn btn-ghost" data-dialog-close>Close</button>
     </div>
   </dialog>
   {% endif %}

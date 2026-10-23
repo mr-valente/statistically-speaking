@@ -20,18 +20,20 @@ def home(request: Request):
                                       context={"request": request, "experiences": list(EXPERIENCES.values())})
 
 
-def solo_experiences():
-    """Experiences that can be played alone, offered on the join page to anyone without a code."""
-    return [e for e in EXPERIENCES.values() if e.solo_route]
+def _join_context(request: Request, code: str, show: str, error: str | None) -> dict:
+    """The join page: a code box, and for anyone without a code the solo games. Arriving from one
+    experience's card (``?show=<slug>``) narrows the solo offer to that experience."""
+    solo = [e for e in EXPERIENCES.values() if e.solo_route]
+    here = next((e for e in solo if e.slug == show), None)
+    return {"request": request, "error": error, "code": code.strip().upper()[:6], "show": show if here else "",
+            "solo": [here] if here else solo, "solo_dialog": here is None and len(solo) > 0}
 
 
 @router.get("/join", response_class=HTMLResponse)
-def join_form(request: Request, code: str = ""):
+def join_form(request: Request, code: str = "", show: str = ""):
     if redirect := ecosystem.login_required(request):
         return redirect
-    return templates.TemplateResponse(request=request, name="join.html",
-                                      context={"request": request, "error": None, "code": code.upper()[:6],
-                                               "solo": solo_experiences()})
+    return templates.TemplateResponse(request=request, name="join.html", context=_join_context(request, code, show, None))
 
 
 def join_url(request: Request, code: str) -> str:
@@ -50,11 +52,9 @@ def join_qr(code: str, request: Request, db: DBSession = Depends(get_db)):
                     headers={"Cache-Control": "public, max-age=3600"})
 
 
-def _join_error(request: Request, message: str, code: str, status_code: int):
+def _join_error(request: Request, message: str, code: str, show: str, status_code: int):
     return templates.TemplateResponse(request=request, name="join.html",
-                                      context={"request": request, "error": message, "code": code,
-                                               "solo": solo_experiences()},
-                                      status_code=status_code)
+                                      context=_join_context(request, code, show, message), status_code=status_code)
 
 
 @router.post("/session/join")
@@ -62,6 +62,7 @@ def join_session(
     request: Request,
     join_code: str = Form(...),
     player_name: str = Form(''),
+    show: str = Form(''),
     db: DBSession = Depends(get_db),
 ):
     join_code = join_code.strip().upper()
@@ -71,18 +72,18 @@ def join_session(
     player_name = ecosystem.display_name(request, " ".join(player_name.split())[:60])
 
     if not player_name:
-        return _join_error(request, "Please enter your name.", join_code, 400)
+        return _join_error(request, "Please enter your name.", join_code, show, 400)
 
     session = db.query(Session).filter_by(join_code=join_code).first()
     if session is None:
-        return _join_error(request, f"No session found with code '{join_code}'.", join_code, 404)
+        return _join_error(request, f"No show found with code {join_code}. Check it with your teacher.", join_code, show, 404)
     if session.status == "ended":
-        return _join_error(request, "This session has already ended.", join_code, 400)
+        return _join_error(request, "That show has already ended.", join_code, show, 400)
 
     player = join_as_player(request, db, session, player_name)
     if player is None:
-        return _join_error(request, "That name is already taken in this session. Try adding an initial.",
-                           join_code, 400)
+        return _join_error(request, "Someone in that show already has that name. Add an initial.",
+                           join_code, show, 400)
 
     return RedirectResponse(url=request.url_for("student_entry", session_id=session.id), status_code=303)
 

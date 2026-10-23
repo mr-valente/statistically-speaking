@@ -14,10 +14,13 @@
     window.scrollTo(0, 0);
   }
 
+  var errorTimer = null;
   function error(message) {
     var e = document.getElementById('error');
+    clearTimeout(errorTimer);
     e.hidden = !message;
     e.textContent = message || '';
+    if (message) errorTimer = setTimeout(function () { e.hidden = true; }, 5000);
   }
 
   function send(url, body) {
@@ -69,6 +72,48 @@
     if (current) container.appendChild(el('p', 'sub small', 'Answer saved. You can change your mind until the show moves on.'));
   }
 
+  /* ── The playpen: a goat and a boat to poke while waiting, when there is no question ── */
+  var GOAT_SAYS = ['Baaa.', 'I ate the answer key.', 'Bleat. Bleat. Statistical bleat.', 'Do I look like a boat to you?',
+                   'I\'ve been behind this door since Tuesday.', 'Baaa-yesian.', 'No spoilers. I\'m a professional.',
+                   'Somebody is going to be very happy to see me. Nobody.'];
+  var BOAT_SAYS = ['Honk honk.', 'Ahoy. 🌊', 'Vroom.', 'I know which door. I\'m not telling.',
+                   'Monty knows where I am. You don\'t. Yet.', 'Does this door make me look big?',
+                   'I\'m worth at least two goats. Allegedly.', 'Please don\'t pick the goat. I get lonely.'];
+  var pets = { goat: 0, boat: 0 };
+
+  function pet(kind, glyph, lines, box) {
+    var wrap = el('div', 'pet-wrap');
+    var bubble = el('div', 'bubble');
+    var b = el('button', 'pet ' + kind, glyph);
+    b.type = 'button';
+    b.setAttribute('aria-label', kind === 'goat' ? 'Poke the goat' : 'Poke the boat');
+    b.addEventListener('click', function () {
+      pets[kind] += 1;
+      bubble.textContent = lines[Math.floor(Math.random() * lines.length)];
+      bubble.classList.add('show');
+      b.classList.remove('poke');
+      void b.offsetWidth;   /* restart the animation */
+      b.classList.add('poke');
+      box.querySelector('.playpen-count').textContent =
+        'Goat poked ' + pets.goat + (pets.goat === 1 ? ' time' : ' times') + ' · boat honked ' + pets.boat + (pets.boat === 1 ? ' time' : ' times');
+    });
+    b.addEventListener('animationend', function () { b.classList.remove('poke'); });
+    wrap.appendChild(bubble);
+    wrap.appendChild(b);
+    return wrap;
+  }
+
+  function playpen(on) {
+    var box = document.getElementById('playpen');
+    if (!on) { box.innerHTML = ''; return; }
+    if (box.firstChild) return;
+    var row = el('div', 'playpen');
+    row.appendChild(pet('goat', Show.GOAT, GOAT_SAYS, box));
+    row.appendChild(pet('boat', Show.BOAT, BOAT_SAYS, box));
+    box.appendChild(row);
+    box.appendChild(el('p', 'sub small playpen-count', 'Something to poke while you wait.'));
+  }
+
   /* ── Requests to sit together, visible in any phase ───────────────────── */
   function renderInbox(s) {
     var inbox = s.you.inbox || [];
@@ -108,13 +153,14 @@
     show('phase-lobby');
     var votes = s.you.votes || {};
     var before = document.getElementById('before-vote');
-    if (!(s.table && s.table.played)) {
-      voteBlock(before, 'before', votes.before,
-                'Before you play: the host opens a goat door and offers you the switch. What\'s the better move?');
+    var asking = s.session.survey && !(s.table && s.table.played);
+    if (asking) {
+      voteBlock(before, 'before', votes.before, 'Before you play: what\'s the better move?');
     } else {
       before.innerHTML = '';
       voteKeys.before = null;
     }
+    playpen(!s.session.survey);
     var key = JSON.stringify([s.room, s.you.asked, s.table, s.session.status]);
     if (key === lobbyKey) return;
     lobbyKey = key;
@@ -227,7 +273,18 @@
       else if (contestant) { text = 'Pick a door, any door! 🚪'; spec.selectable = [1, 2, 3]; spec.onSelect = function (d) { act('pick', { door: d }); }; }
       else text = C + ' is picking a door.';
     } else if (g.status === 'opening') {
-      if (host) { text = C + ' picked door ' + g.pick + '. Open a door with a goat behind it. 🐐'; spec.selectable = g.legal || []; spec.onSelect = function (d) { act('open', { door: d }); }; }
+      if (host) {
+        text = C + ' picked door ' + g.pick + '. Open a door with a goat behind it. 🐐';
+        spec.selectable = g.legal || [];
+        spec.onSelect = function (d) { act('open', { door: d }); };
+        /* The other doors stay tappable so the refusal explains the host's two rules. */
+        spec.refuse = function (d) {
+          if (d === g.pick) return 'That\'s ' + C + '\'s door. The host never opens the contestant\'s pick.';
+          if (d === g.boat) return 'That\'s the boat! The host never gives away the prize. Open a goat.';
+          return null;
+        };
+        spec.onRefuse = error;
+      }
       else if (contestant) text = 'You picked door ' + g.pick + '. ' + H + ' is opening a door…';
       else text = C + ' picked door ' + g.pick + '. ' + H + ' is opening a door.';
     } else if (g.status === 'deciding') {
@@ -280,8 +337,9 @@
   function renderEnded(s) {
     show('phase-ended');
     var votes = s.you.votes || {};
-    voteBlock(document.getElementById('after-vote'), 'after', votes.after,
-              'Now that you\'ve seen the record: the host opens a goat door and offers you the switch. What\'s the better move?');
+    if (s.session.survey) {
+      voteBlock(document.getElementById('after-vote'), 'after', votes.after, 'Now that you\'ve seen the record: what\'s the better move?');
+    }
     var box = document.getElementById('summary'), y = s.summary;
     if (!y || box.dataset.done) return;
     box.dataset.done = '1';

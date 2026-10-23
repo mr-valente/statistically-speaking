@@ -11,8 +11,9 @@ X = "/x/full-monty"
 class FullMontyTests(ServerTest):
     # ── Fixtures ────────────────────────────────────────────────────────────
 
-    def session(self, teacher, label="P3"):
-        status, headers, _ = teacher.post(f"{X}/create", form={"label": label})
+    def session(self, teacher, label="P3", survey=True):
+        form = {"label": label, **({"survey": "on"} if survey else {})}
+        status, headers, _ = teacher.post(f"{X}/create", form=form)
         self.assertEqual(status, 303)
         location = headers["location"]
         self.assertTrue(location.startswith(f"https://valentemath.com{PREFIX}{X}/t/"), location)
@@ -79,6 +80,16 @@ class FullMontyTests(ServerTest):
         status, _, join = browser.get("/join")
         self.assertEqual(status, 200)
         self.assertIn(f'href="https://valentemath.com{PREFIX}{X}/solo"', join)  # solo lives on the join page
+        self.assertIn('data-dialog="solo-dialog"', join)                        # behind a picker when no show is named
+        status, _, join = browser.get("/join?show=full-monty")
+        self.assertIn(f'href="https://valentemath.com{PREFIX}{X}/solo" class="btn', join)  # straight to Monty from the card
+        self.assertNotIn("solo-dialog", join)
+        self.assertIn('name="show" value="full-monty"', join)
+        status, _, join = browser.post("/session/join", form={"join_code": "NOPE00", "player_name": "Maya", "show": "full-monty"})
+        self.assertEqual(status, 404)
+        self.assertIn("No show found with code NOPE00", join)
+        self.assertNotIn("solo-dialog", join)                                   # the error page keeps the context
+        self.assertIn("solo-dialog", browser.get("/join?show=nope")[2])          # an unknown show falls back to the picker
         self.assertEqual(browser.get("/admin")[0], 200)
         status, _, solo = browser.get(f"{X}/solo")
         self.assertEqual(status, 200)
@@ -110,7 +121,7 @@ class FullMontyTests(ServerTest):
         maya = self.browser().student(code, "Maya")
         status, _, page = self.browser().post("/session/join", form={"join_code": code, "player_name": "Maya"})
         self.assertEqual(status, 400)
-        self.assertIn("already taken", page)
+        self.assertIn("already has that name", page)
         self.assertEqual(maya.post("/session/join", form={"join_code": code, "player_name": "Maya"})[0], 303)
         self.assertEqual(self.state(session_id)["session"]["players"], 1)
         # A student cannot run teacher actions.
@@ -184,6 +195,38 @@ class FullMontyTests(ServerTest):
         self.assertEqual(self.state(session_id, zed)["game"]["role"], "watching")
         self.assertEqual(self.state(session_id, zed)["table"]["next"], {"host": "Maya", "contestant": "Zed"})
         self.assertIn("closed", self.vote(maya, session_id, "before", "switch")[1]["error"])
+
+    def test_the_belief_question_can_be_switched_off(self):
+        teacher = self.browser().teacher()
+        session_id, code = self.session(teacher, survey=False)
+        maya = self.students(session_id, code, "Maya")["Maya"]
+        st = self.state(session_id, maya)
+        self.assertFalse(st["session"]["survey"])
+        status, body = self.vote(maya, session_id, "before", "switch")
+        self.assertEqual(status, 409)
+        self.assertIn("switched off", body["error"])
+        self.assertFalse(self.teacher_state(teacher, session_id)["session"]["survey"])
+        status, _, page = teacher.get(f"{X}/t/{session_id}")
+        self.assertNotIn("What the room believes", page)
+        self.assertNotIn("Beliefs CSV", page)
+        self.assertIn('name="survey"', page)
+        status, _, page = self.browser().get(f"{X}/p/{session_id}")
+        self.assertEqual(status, 200)
+        self.assertNotIn("answered the question", page)
+
+        # The teacher switches it on mid-lobby; the question opens and the dashboard shows it.
+        status, _, _ = teacher.post(f"{X}/t/{session_id}/survey", form={"survey": "on"})
+        self.assertEqual(status, 303)
+        self.assertTrue(self.state(session_id, maya)["session"]["survey"])
+        self.assertEqual(self.vote(maya, session_id, "before", "switch")[0], 200)
+        _, _, page = teacher.get(f"{X}/t/{session_id}")
+        self.assertIn("What the room believes", page)
+        self.assertIn("Beliefs CSV", page)
+
+        # And off again: no field in the form means unchecked.
+        teacher.post(f"{X}/t/{session_id}/survey", form={})
+        self.assertFalse(self.state(session_id, maya)["session"]["survey"])
+        self.assertEqual(self.vote(maya, session_id, "before", "stay")[0], 409)
 
     def test_full_classroom_flow(self):
         teacher = self.browser().teacher()

@@ -371,6 +371,17 @@ def set_rule(db: DBSession, session: Session, rule: str) -> None:
         db.commit()
 
 
+def survey_on(session: Session) -> bool:
+    """Whether students are asked what they believe, before they play and when the show ends."""
+    return bool(session.settings.get("survey", True))
+
+
+def set_survey(db: DBSession, session: Session, on: bool) -> None:
+    if session.status != "ended":
+        session.update_settings(survey=bool(on))
+        db.commit()
+
+
 def end_session(db: DBSession, session: Session) -> None:
     """Close the show; a game still in play is dropped and leaves no mark on the record."""
     for game in db.query(FullMontyGame).filter_by(session_id=session.id):
@@ -393,6 +404,8 @@ def cast_vote(db: DBSession, session: Session, player: Player, phase: str, choic
     """``before`` is open until the student's table starts playing; ``after`` opens when the show ends."""
     if choice not in VOTE_CHOICES:
         raise Refused("Choose switch, stay or no difference.")
+    if not survey_on(session):
+        raise Refused("The question is switched off for this show.")
     if phase == "before":
         if session.status == "ended" or has_played(db, player.id):
             raise Refused("The first question closed when your table started playing.")

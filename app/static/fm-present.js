@@ -19,7 +19,8 @@
     if (s.session.status === 'lobby') {
       show('phase-lobby');
       document.getElementById('joined-count').textContent = s.session.players;
-      document.getElementById('answered-count').textContent = r.votes.before.total;
+      var answered = document.getElementById('answered-count');
+      if (answered) answered.textContent = r.votes.before.total;
       Show.room(document.getElementById('room'), s.room, s.session.status);
       return;
     }
@@ -41,7 +42,8 @@
       line = r.text[t.switch.n ? 'switch' : 'stay'];
     }
     document.getElementById('statement').textContent = line;
-    Show.beliefs(document.getElementById('beliefs'), r.votes);
+    var beliefs = document.getElementById('beliefs');
+    if (beliefs) Show.beliefs(beliefs, r.votes);
   }
 
   Show.poll(root.dataset.stateUrl, render, 1500);

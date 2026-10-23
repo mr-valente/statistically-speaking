@@ -23,7 +23,7 @@
         <div class="join-big">Scan to join</div>
       </div>
     </div>
-    <p class="joined"><strong id="joined-count">0</strong> in the room · <strong id="answered-count">0</strong> answered the question</p>
+    <p class="joined"><strong id="joined-count">0</strong> in the room{% if survey %} · <strong id="answered-count">0</strong> answered the question{% endif %}</p>
     <div class="room-board" id="room"></div>
   </section>
 
@@ -42,10 +42,12 @@
     <div id="record-final"></div>
     <p class="statement" id="statement"></p>
     <svg id="chart-final" class="chart chart-large" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
+    {% if survey %}
     <div class="beliefs-wide">
       <h2>What the room believed</h2>
       <div id="beliefs"></div>
     </div>
+    {% endif %}
   </section>
 </div>
 {% endblock %}

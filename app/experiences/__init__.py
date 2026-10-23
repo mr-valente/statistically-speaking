@@ -24,6 +24,7 @@ class Experience:
     teacher_route: str       # url_for name(session_id=...): teacher's session dashboard
     student_route: str       # url_for name(session_id=...): student's view
     solo_route: str | None = None   # url_for name: play alone against the computer, no session needed
+    solo_label: str = "Play solo"   # the button that leads there
 
 
 from app.experiences.full_monty import EXPERIENCE as _full_monty  # noqa: E402
