@@ -107,7 +107,7 @@
         else tag = boat ? 'the boat' : 'goat';
       } else {
         if (!boat) { prize.textContent = ''; prize.className = 'door-prize'; }
-        if (spec.pick === d) tag = mine + ' pick';
+        if (spec.pick === d) tag = mine + ' pick' + (boat ? ' · boat!' : '');
         else if (boat) tag = 'boat · shh';
       }
       b.querySelector('.door-tag').textContent = tag;

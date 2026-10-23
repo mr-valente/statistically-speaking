@@ -17,7 +17,7 @@ The Monty Hall problem, played by partners and settled by the class record. (The
 - **House rule.** The teacher can let contestants choose, or make everyone stay or everyone switch for a while, so both columns of the record fill up.
 - **The record.** The projector and the teacher's dashboard show the win rate for staying and for switching, the share of first picks that were right, and a chart of both rates after each game with 1/3, 1/2 and 2/3 marked. A plain-English line says how often a coin flip would do at least as well as switching did.
 - **The end.** Students answer the question again, then see their own games and the class record. The projector shows the record and the room's beliefs before and after. Games and beliefs export as CSV.
-- **Solo.** `/x/full-monty/solo` plays against Monty, the computer host, with no session or sign-in. It is offered on the join page for anyone without a code. The record lives in the browser.
+- **Solo.** `/x/full-monty/solo` plays against Monty with no session or sign-in, taking turns: Monty hosts one game and plays the next, so the student hides, opens and decides as well as picks. It is offered on the join page for anyone without a code. The record lives in the browser.
 
 A design note with the reasoning and the ideas not built is in [docs/full-monty.md](docs/full-monty.md).
 

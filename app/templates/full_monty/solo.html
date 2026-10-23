@@ -3,13 +3,14 @@
 {% block container_class %}container-play student{% endblock %}
 {% block content %}
 <div id="solo">
-  <div class="round-head"><span>🚪 Full Monty</span> <span class="badge badge-gold">solo</span></div>
-  <p class="sub">Monty hides the boat. You pick a door. Monty opens a goat. Stay or switch?</p>
-  <p class="prompt" id="prompt"></p>
+  <div class="round-head"><span>🚪 Full Monty</span> <span class="badge badge-gold">solo</span> <span class="badge" id="role-badge"></span></div>
+  <p class="sub">You and Monty take turns hosting. Hide the boat, pick a door, open a goat, stay or switch.</p>
+  <p class="prompt" id="prompt" aria-live="polite"></p>
   <div class="stage"><div class="doors" id="doors"></div></div>
+  <p class="nope" id="error" role="alert" hidden></p>
   <div class="panel" id="panel"></div>
   <div class="card summary-record">
-    <div class="card-title-row"><h3>Your record</h3><span class="muted small" id="games-line"></span></div>
+    <div class="card-title-row"><h3>The record</h3><span class="muted small" id="games-line"></span></div>
     <div id="record"></div>
     <svg id="chart" class="chart" role="img" aria-label="Win rate after each game, for staying and for switching"></svg>
     <p class="small muted" id="surprise"></p>
