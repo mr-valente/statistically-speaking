@@ -53,7 +53,8 @@
 
   /* The three doors are built once per container and updated in place, so the panels swing and the
      prizes pop instead of flashing. spec: { status, role, pick, opened, boat, final, won, selectable,
-     onSelect, mine } where mine is the word for the contestant's door ("your" or a name). */
+     onSelect, refuse, onRefuse, mine } where mine is the word for the contestant's door ("your" or a
+     name). refuse(d) returns why a door may not be chosen; such a door shakes and onRefuse gets the reason. */
   function doors(container, spec) {
     if (!container._doors) {
       container._doors = [1, 2, 3].map(function (d) {
@@ -69,8 +70,16 @@
         b.appendChild(el('span', 'door-tag'));
         b.addEventListener('click', function () {
           var s = container._spec;
-          if (s && s.selectable && s.selectable.indexOf(d) !== -1 && s.onSelect) s.onSelect(d);
+          if (!s) return;
+          if (s.selectable && s.selectable.indexOf(d) !== -1) { if (s.onSelect) s.onSelect(d); return; }
+          var why = s.refuse ? s.refuse(d) : null;
+          if (!why) return;
+          b.classList.remove('nope');
+          void b.offsetWidth;
+          b.classList.add('nope');
+          if (s.onRefuse) s.onRefuse(why);
         });
+        b.addEventListener('animationend', function (e) { if (e.animationName === 'door-nope') b.classList.remove('nope'); });
         container.appendChild(b);
         return b;
       });
@@ -103,7 +112,8 @@
       }
       b.querySelector('.door-tag').textContent = tag;
       b.setAttribute('aria-label', 'Door ' + d + (tag ? ', ' + tag : ''));
-      b.disabled = selectable.indexOf(d) === -1;
+      b.disabled = selectable.indexOf(d) === -1 && !(spec.refuse && spec.refuse(d));
+      b.classList.toggle('refusable', !b.disabled && selectable.indexOf(d) === -1);
     });
   }
 
@@ -307,15 +317,20 @@
     });
   }
 
-  function qrDialog() {
-    var open = document.getElementById('qr-open'), dialog = document.getElementById('qr-dialog');
-    if (!open || !dialog || !dialog.showModal) return;
-    open.addEventListener('click', function () { dialog.showModal(); });
-    document.getElementById('qr-close').addEventListener('click', function () { dialog.close(); });
-    dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+  /* Any button with data-dialog="id" opens that <dialog>; data-dialog-close inside closes it; so does the backdrop. */
+  function dialogs() {
+    document.querySelectorAll('button[data-dialog]').forEach(function (open) {
+      var dialog = document.getElementById(open.dataset.dialog);
+      if (!dialog || !dialog.showModal) return;
+      open.addEventListener('click', function () { dialog.showModal(); });
+      dialog.querySelectorAll('[data-dialog-close]').forEach(function (b) { b.addEventListener('click', function () { dialog.close(); }); });
+      dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+    });
   }
 
   global.Show = { el: el, pct: pct, plural: plural, fetchJSON: fetchJSON, poll: poll, doors: doors, confetti: confetti,
                   record: record, chart: chart, beliefs: beliefs, room: room, surprise: surprise, describe: describe,
-                  confirmForms: confirmForms, qrDialog: qrDialog, GOAT: GOAT, BOAT: BOAT };
+                  confirmForms: confirmForms, dialogs: dialogs, GOAT: GOAT, BOAT: BOAT };
+  confirmForms();
+  dialogs();
 })(window);

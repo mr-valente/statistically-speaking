@@ -19,6 +19,7 @@ def _descriptor():
         teacher_route="full_monty_teacher",
         student_route="full_monty_student",
         solo_route="full_monty_solo",
+        solo_label="Play solo vs. Monty",
     )
 
 

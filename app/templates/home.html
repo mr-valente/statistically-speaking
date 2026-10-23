@@ -5,7 +5,7 @@
 <div class="hero">
   <div class="marquee">
     <h1>🎙 Statistically Speaking</h1>
-    <p class="tagline">The only game show you're guaranteed to win in the long run!</p>
+    <p class="tagline">The only game show you're guaranteed to win… in the long run!</p>
   </div>
   <div class="hero-actions">
     <a href="{{ request.url_for('join_form') }}" class="btn btn-primary btn-lg">Join the show</a>
@@ -23,15 +23,15 @@
     <div class="exp-tagline">{{ exp.question }}</div>
     <p>{{ exp.description }}</p>
     <div class="exp-actions">
-      <a href="{{ request.url_for('join_form') }}" class="btn btn-primary">Join as a student</a>
+      <a href="{{ request.url_for('join_form') }}?show={{ exp.slug }}" class="btn btn-primary">Join as a student</a>
       <a href="{{ request.url_for(exp.new_session_route) }}" class="btn btn-ghost">Run it as the teacher</a>
     </div>
   </div>
   {% endfor %}
   <div class="card exp-card coming-soon">
     <div class="exp-emoji">🎲</div>
-    <h3>More rounds coming</h3>
-    <p>New rounds appear here as they're built.</p>
+    <h3>More games coming</h3>
+    <p>New games appear here as they're built.</p>
   </div>
 </div>
 {% endblock %}

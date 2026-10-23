@@ -81,11 +81,12 @@ def full_monty_new(request: Request, db: DBSession = Depends(get_db)):
 
 
 @router.post("/create")
-def full_monty_create(request: Request, label: str = Form(""), db: DBSession = Depends(get_db)):
+def full_monty_create(request: Request, label: str = Form(""), survey: str = Form(""),
+                      db: DBSession = Depends(get_db)):
     teacher = current_teacher(request, db)
     if not teacher:
         return RedirectResponse(url=request.url_for("admin_login_page"), status_code=303)
-    settings = {"label": " ".join(label.split())[:40], "rule": logic.DEFAULT_RULE}
+    settings = {"label": " ".join(label.split())[:40], "rule": logic.DEFAULT_RULE, "survey": survey == "on"}
     session = Session(teacher_id=teacher.id, kind=KIND, join_code=generate_join_code(db),
                       settings_json=json.dumps(settings))
     db.add(session)
@@ -127,7 +128,8 @@ def full_monty_teacher(session_id: str, request: Request, db: DBSession = Depend
     names = _names(db, session.id)
     return templates.TemplateResponse(request=request, name="full_monty/teacher.html", context={
         "request": request, "teacher": teacher, "session": session, "settings": session.settings,
-        "rule": _rule(session), "rules": logic.RULES, "players": list(names.values()),
+        "rule": _rule(session), "rules": logic.RULES, "survey": logic.survey_on(session),
+        "players": list(names.values()),
         "room": _room(db, session, names), "summary": logic.class_summary(db, session),
         "join_url": str(request.url_for("join_form")),
         "qr_url": str(request.url_for("join_qr", code=session.join_code)),
@@ -143,7 +145,8 @@ def full_monty_teacher_state(session_id: str, request: Request, db: DBSession = 
         return JSONResponse({"error": "not_found"}, status_code=404, headers=NO_STORE)
     names = _names(db, session.id)
     return JSONResponse({
-        "session": {"status": session.status, "rule": _rule(session), "players": len(names)},
+        "session": {"status": session.status, "rule": _rule(session), "survey": logic.survey_on(session),
+                    "players": len(names)},
         "players": list(names.values()), "room": _room(db, session, names),
         "summary": logic.class_summary(db, session), "now": _epoch(datetime.now(timezone.utc)),
     }, headers=NO_STORE)
@@ -175,6 +178,15 @@ def full_monty_rule(session_id: str, request: Request, rule: str = Form(...), db
     if redirect:
         return redirect
     logic.set_rule(db, session, rule)
+    return _redirect_teacher(request, session_id)
+
+
+@router.post("/t/{session_id}/survey")
+def full_monty_survey(session_id: str, request: Request, survey: str = Form(""), db: DBSession = Depends(get_db)):
+    session, redirect = _guard(request, session_id, db)
+    if redirect:
+        return redirect
+    logic.set_survey(db, session, survey == "on")
     return _redirect_teacher(request, session_id)
 
 
@@ -241,7 +253,7 @@ def full_monty_present(session_id: str, request: Request, db: DBSession = Depend
     if session is None:
         return RedirectResponse(url=request.url_for("home"), status_code=303)
     return templates.TemplateResponse(request=request, name="full_monty/present.html", context={
-        "request": request, "session": session, "settings": session.settings,
+        "request": request, "session": session, "settings": session.settings, "survey": logic.survey_on(session),
         "join_url": str(request.url_for("join_form")),
         "qr_url": str(request.url_for("join_qr", code=session.join_code)),
         "state_url": str(request.url_for("full_monty_public_state", session_id=session.id)),
@@ -257,7 +269,7 @@ def full_monty_student(session_id: str, request: Request, db: DBSession = Depend
     if session is None or player is None:
         return RedirectResponse(url=request.url_for("join_form"), status_code=303)
     return templates.TemplateResponse(request=request, name="full_monty/student.html", context={
-        "request": request, "session": session, "settings": session.settings, "player": player,
+        "request": request, "session": session, "settings": session.settings, "survey": logic.survey_on(session), "player": player,
         "state_url": str(request.url_for("full_monty_public_state", session_id=session.id)),
         "act_url": str(request.url_for("full_monty_act", session_id=session.id)),
         "seat_url": str(request.url_for("full_monty_seating", session_id=session.id)),
@@ -289,7 +301,8 @@ def _public_state(db: DBSession, session: Session, player: Player | None) -> dic
     names = _names(db, session.id)
     state = {
         "session": {"status": session.status, "join_code": session.join_code, "rule": _rule(session),
-                    "label": session.settings.get("label", ""), "players": len(names)},
+                    "survey": logic.survey_on(session), "label": session.settings.get("label", ""),
+                    "players": len(names)},
         "room": _room(db, session, names),
         "you": None, "table": None, "game": None, "summary": None,
         "record": logic.class_summary(db, session),

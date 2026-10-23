@@ -6,6 +6,7 @@
   <h2>🎟 Join the show</h2>
   {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
   <form method="post" action="{{ request.url_for('join_session') }}">
+    {% if show %}<input type="hidden" name="show" value="{{ show }}">{% endif %}
     <div class="form-group">
       <label for="join_code">Join code</label>
       <input type="text" id="join_code" name="join_code" class="form-control code-input" maxlength="6" required
@@ -25,8 +26,29 @@
 </div>
 {% if solo %}
 <div class="or-line"><span>no code?</span></div>
+{% if solo_dialog %}
+<button type="button" class="btn btn-gold btn-lg btn-block" data-dialog="solo-dialog">🎮 Play solo</button>
+<dialog class="dialog" id="solo-dialog">
+  <div class="dialog-body">
+    <h2>Pick a game</h2>
+    <div class="pick-list">
+      {% for exp in solo %}
+      <a class="pick-item" href="{{ request.url_for(exp.solo_route) }}">
+        <span class="pick-glyph">{{ exp.glyph }}</span>
+        <span class="pick-text"><strong>{{ exp.name }}</strong><span class="muted small">{{ exp.solo_label }}</span></span>
+      </a>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-ghost" data-dialog-close>Close</button>
+  </div>
+</dialog>
+{% else %}
 {% for exp in solo %}
-<a href="{{ request.url_for(exp.solo_route) }}" class="btn btn-gold btn-lg btn-block">{{ exp.glyph }} Play {{ exp.name }} solo vs. Monty</a>
+<a href="{{ request.url_for(exp.solo_route) }}" class="btn btn-gold btn-lg btn-block">{{ exp.glyph }} {{ exp.solo_label }}</a>
 {% endfor %}
 {% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ request.url_for('static', path='show.js') }}"></script>
 {% endblock %}

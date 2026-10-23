@@ -10,7 +10,7 @@
   {% if sessions %}
   <div class="table-scroll">
     <table>
-      <thead><tr><th>Code</th><th>Round</th><th>Label</th><th>Status</th><th>Students</th><th>Created</th><th></th></tr></thead>
+      <thead><tr><th>Code</th><th>Game</th><th>Label</th><th>Status</th><th>Students</th><th>Created</th><th></th></tr></thead>
       <tbody>
         {% for s in sessions %}
         {% set exp = experiences.get(s.kind) %}

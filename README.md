@@ -1,6 +1,6 @@
 # 🎙 Statistically Speaking
 
-A self-hosted, single-container suite of game-show rounds for teaching statistics. Teachers run a session from a laptop, put a presenter view on the projector, and students join on their phones with a six-letter code. Each experience is a small, self-contained lesson.
+A self-hosted, single-container suite of game-show style games for teaching statistics. Teachers run a session from a laptop, put a presenter view on the projector, and students join on their phones with a six-letter code. Each experience is a small, self-contained lesson.
 
 Built with **Python/FastAPI**, **Jinja2** server-rendered templates, vanilla JS, and **SQLite**: the same stack and deployment contract as [Bernoulli](../bernoulli), whose suite/experience structure this repeats.
 
@@ -10,7 +10,7 @@ Built with **Python/FastAPI**, **Jinja2** server-rendered templates, vanilla JS,
 
 The Monty Hall problem, played by partners and settled by the class record. (The prize is a boat because it rhymes with goat.)
 
-- **Join and answer.** Students join with the code and answer one question while they wait: when the host opens a goat door and offers the switch, is it better to switch, stay, or does it make no difference? The projector shows how many have answered, not the split.
+- **Join and answer.** Students join with the code and answer one question while they wait: what's the better move, switch, stay, or no difference? The projector shows how many have answered, not the split. The teacher can switch the question off for a show; students then get a goat and a boat to poke while they wait.
 - **Find a table.** Students seat themselves. The lobby lists everyone still looking; tapping a classmate asks to sit together, and a yes makes a table. Tables seat two or three, so an odd class needs no special case. A third can ask to join a table with room, even once it is playing. Anyone left looking can be seated by the teacher in one tap.
 - **Start the show.** The teacher starts the show when the room looks right. Tables that form later start playing at once.
 - **Play.** Partners take turns; three at a table take turns hosting, playing and watching, so every pair plays. The **host** hides the boat (taps a door), sees the contestant's pick, and must open a door that hides a goat: the app only accepts a legal door and says why when it refuses. The **contestant** picks a door, then stays or switches. The doors swing open on every phone at the table, the boat gets confetti, and anyone at the table starts the next game.
